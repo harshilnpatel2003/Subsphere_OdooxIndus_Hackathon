@@ -13,7 +13,7 @@ export default function PortalNav() {
       <Link href="/" style={{color:'#fff',fontWeight:'bold',fontSize:'1.2em',textDecoration:'none'}}>SubSphere</Link>
       <Link href="/shop" style={{color:'#ccc',textDecoration:'none'}}>Shop</Link>
       <Link href="/orders" style={{color:'#ccc',textDecoration:'none'}}>My Orders</Link>
-      <Link href="/account" style={{color:'#ccc',textDecoration:'none'}}>Account</Link>
+      <Link href="/account" style={{color:'#ccc',textDecoration:'none'}}>Profile</Link>
       <Link href="/cart" style={{color:'#ccc',textDecoration:'none'}}>Cart ({count})</Link>
       <div style={{marginLeft:'auto'}}>
         {loggedIn ? <Link href="/dashboard" style={{color:'#ccc',textDecoration:'none'}}>Admin</Link> : <Link href="/login" style={{color:'#ccc',textDecoration:'none'}}>Login</Link>}

@@ -44,10 +44,10 @@ function SubscriptionsPage() {
       title="Subscriptions"
       subtitle="Manage recurring revenue cycles, customer lifecycle stages, and ledger-aligned subscription data."
       actions={
-        <button className="btn btn-primary">
+        <Link href="/subscriptions/new" className="btn btn-primary" style={{ textDecoration: 'none' }}>
           <span className="material-icons" style={{ fontSize: 16 }}>add</span>
           New Subscription
-        </button>
+        </Link>
       }
     >
       {/* Stat Cards */}

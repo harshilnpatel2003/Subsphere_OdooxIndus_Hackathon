@@ -30,6 +30,22 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.save()
         return Response({'status': 'confirmed'})
 
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        invoice = self.get_object()
+        invoice.status = InvoiceStatus.CANCELLED
+        invoice.save()
+        return Response({'status': 'cancelled'})
+
+    @action(detail=True, methods=['post'])
+    def reset_to_draft(self, request, pk=None):
+        invoice = self.get_object()
+        if invoice.status == InvoiceStatus.CANCELLED:
+            invoice.status = InvoiceStatus.DRAFT
+            invoice.save()
+            return Response({'status': 'draft'})
+        return Response({'error': 'Invoice must be cancelled to reset to draft'}, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=True, methods=['get'])
     def pdf(self, request, pk=None):
         invoice = self.get_object()

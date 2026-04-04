@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import PortalNav from '@/components/PortalNav';
 import { formatDate, formatSubNumber, formatINR } from '@/lib/formatters';
+import { openRazorpayCheckout } from '@/lib/razorpay';
 import withAuth from '@/components/withAuth';
 import Link from 'next/link';
 
@@ -15,6 +16,7 @@ function SubscriptionDetailPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState('');
+  const [processing, setProcessing] = useState(false);
 
   const fetchSubscriptionDetails = async () => {
     setLoading(true);
@@ -25,9 +27,9 @@ function SubscriptionDetailPage() {
       ]);
       setSub(sRes.data);
       setInvoices(iRes.data);
-      setLoading(false);
     } catch (err) {
       console.error(err);
+    } finally {
       setLoading(false);
     }
   };
@@ -38,16 +40,60 @@ function SubscriptionDetailPage() {
 
   const handleAction = async (action: string) => {
     if (action === 'close' && !confirm('Are you sure you want to cancel this subscription?')) return;
-    
-    setActionMsg(`Processing ${action}...`);
+    setProcessing(true);
+    setActionMsg(`Processing...`);
     try {
       await api.post(`/subscriptions/${subscriptionId}/${action}/`);
-      setActionMsg(`✓ Successfully ${action === 'close' ? 'cancelled' : action + 'ed'}`);
+      setActionMsg(`✓ Done`);
       setTimeout(() => setActionMsg(''), 3000);
       fetchSubscriptionDetails();
     } catch (err: any) {
       alert('Action failed: ' + (err.response?.data?.error || 'Unknown error'));
       setActionMsg('');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleAcceptQuotation = async () => {
+    if (!confirm('Do you want to accept this quotation and proceed to payment?')) return;
+    setProcessing(true);
+    setActionMsg('Accepting quotation...');
+    try {
+      const res = await api.post(`/subscriptions/${subscriptionId}/accept_quotation/`);
+      const invoiceId = res.data.invoice_id;
+      setActionMsg('Opening payment gateway...');
+      // Open Razorpay for the newly created confirmed invoice
+      await openRazorpayCheckout(
+        invoiceId,
+        () => {
+          setActionMsg('✓ Payment successful! Subscription is now active.');
+          router.push(`/invoices/${invoiceId}`);
+        },
+        () => {
+          setActionMsg('Payment cancelled. You can pay later from the invoices section.');
+          setProcessing(false);
+          // Still redirect to invoice so user can pay later
+          router.push(`/invoices/${invoiceId}`);
+        }
+      );
+    } catch (err: any) {
+      alert('Failed to accept quotation: ' + (err.response?.data?.error || 'Unknown error'));
+      setActionMsg('');
+      setProcessing(false);
+    }
+  };
+
+  const handleRejectQuotation = async () => {
+    if (!confirm('Are you sure you want to reject this quotation? This cannot be undone.')) return;
+    setProcessing(true);
+    try {
+      await api.post(`/subscriptions/${subscriptionId}/reject_quotation/`);
+      setActionMsg('Quotation rejected.');
+      setTimeout(() => router.push('/orders'), 1500);
+    } catch (err: any) {
+      alert('Failed: ' + (err.response?.data?.error || 'Unknown error'));
+      setProcessing(false);
     }
   };
 
@@ -86,6 +132,7 @@ function SubscriptionDetailPage() {
                <table style={{width:'100%', borderCollapse:'collapse'}}>
                   <thead>
                     <tr style={{background:'#f9f9f9', borderBottom:'1px solid #ddd'}}>
+                      <th style={{padding:'10px', textAlign:'left'}}>Image</th>
                       <th style={{padding:'10px', textAlign:'left'}}>Product</th>
                       <th style={{padding:'10px', textAlign:'center'}}>Qty</th>
                       <th style={{padding:'10px', textAlign:'right'}}>Unit Price</th>
@@ -95,6 +142,15 @@ function SubscriptionDetailPage() {
                   <tbody>
                     {sub.lines?.map((line: any) => (
                       <tr key={line.id} style={{borderBottom:'1px solid #eee'}}>
+                        <td style={{padding:'10px'}}>
+                          <div style={{width:'40px', height:'40px', background:'#f5f5f5', borderRadius:'4px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                            {line.product_photo ? (
+                              <img src={line.product_photo} alt={line.product_name} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                            ) : (
+                              <span className="material-icons" style={{fontSize: 20, color:'#ccc', fontFamily:'Material Icons'}}>image</span>
+                            )}
+                          </div>
+                        </td>
                         <td style={{padding:'10px'}}>{line.product_name || `Product #${line.product}`}</td>
                         <td style={{padding:'10px', textAlign:'center'}}>{line.quantity}</td>
                         <td style={{padding:'10px', textAlign:'right'}}>{formatINR(line.unit_price)}</td>
@@ -107,14 +163,65 @@ function SubscriptionDetailPage() {
           </div>
 
           <div style={{flex: 1}}>
+             {/* Quotation Info Panel */}
+             {(sub.status === 'quotation' || sub.status === 'quotation_sent') && (
+               <div style={{padding:'20px', border:'2px solid #ffc107', borderRadius:'8px', background:'#fffdf0', marginBottom: 20}}>
+                 <h3 style={{marginTop:0, color:'#7c5e00'}}>📋 Quotation Details</h3>
+                 <p style={{color:'#555', fontSize:'0.9rem', lineHeight:'1.6'}}>
+                   This is a formal quotation prepared for you. Please review the order lines and pricing carefully.
+                 </p>
+                 {sub.expiration_date && (
+                   <p style={{marginTop:10, fontSize:'0.875rem'}}>
+                     <strong>⏰ Expires:</strong> <span style={{color:'#c0392b'}}>{formatDate(sub.expiration_date)}</span>
+                   </p>
+                 )}
+                 {sub.status === 'quotation_sent' && (
+                   <div style={{marginTop:14, padding:'10px 14px', background:'#e8f4fd', borderRadius:6, fontSize:'0.85rem', color:'#1a5276'}}>
+                     ✉️ This quotation has been sent to you for review. Please accept or reject below.
+                   </div>
+                 )}
+
+                 {/* Accept / Reject Buttons */}
+                 <div style={{display:'flex', gap:12, marginTop:20}}>
+                   <button
+                     type="button"
+                     disabled={processing}
+                     onClick={handleAcceptQuotation}
+                     style={{
+                       flex:1, padding:'12px', background:'#28a745', color:'#fff',
+                       border:'none', borderRadius:6, cursor:'pointer', fontWeight:'bold', fontSize:'1rem'
+                     }}
+                   >
+                     {processing ? '⏳ Processing...' : 'Accept & Pay'}
+                   </button>
+                   <button
+                     type="button"
+                     disabled={processing}
+                     onClick={handleRejectQuotation}
+                     style={{
+                       flex:1, padding:'12px', background:'#fff', color:'#dc3545',
+                       border:'2px solid #dc3545', borderRadius:6, cursor:'pointer', fontWeight:'bold', fontSize:'1rem'
+                     }}
+                   >
+                     Reject
+                   </button>
+                 </div>
+                 <p style={{marginTop:12, fontSize:'0.8rem', color:'#888', textAlign:'center'}}>
+                   Once accepted, you'll be taken to the payment gateway. You can also pay later from My Orders.
+                 </p>
+               </div>
+             )}
+
+             {/* Active Actions */}
              {sub.status === 'active' && (
                <div style={{padding:'20px', border:'1px solid #ddd', borderRadius:'8px', background:'#f8f9fa'}}>
                   <h3 style={{marginTop:0}}>Quick Actions</h3>
-                  <button onClick={() => handleAction('renew')} style={{width:'100%', padding:'10px', background:'#28a745', color:'#fff', border:'none', borderRadius:'4px', marginTop:'10px', cursor:'pointer', fontWeight:'bold'}}>Renew Subscription</button>
-                  <button onClick={() => handleAction('pause')} style={{width:'100%', padding:'10px', background:'#ffc107', color:'#212529', border:'none', borderRadius:'4px', marginTop:'10px', cursor:'pointer', fontWeight:'bold'}}>Pause Service</button>
-                  <button onClick={() => handleAction('close')} style={{width:'100%', padding:'10px', background:'#dc3545', color:'#fff', border:'none', borderRadius:'4px', marginTop:'10px', cursor:'pointer', fontWeight:'bold'}}>Cancel Subscription</button>
+                  <button type="button" onClick={() => handleAction('renew')} style={{width:'100%', padding:'10px', background:'#28a745', color:'#fff', border:'none', borderRadius:'4px', marginTop:'10px', cursor:'pointer', fontWeight:'bold'}}>Renew Subscription</button>
+                  <button type="button" onClick={() => handleAction('pause')} style={{width:'100%', padding:'10px', background:'#ffc107', color:'#212529', border:'none', borderRadius:'4px', marginTop:'10px', cursor:'pointer', fontWeight:'bold'}}>Pause Service</button>
+                  <button type="button" onClick={() => handleAction('close')} style={{width:'100%', padding:'10px', background:'#dc3545', color:'#fff', border:'none', borderRadius:'4px', marginTop:'10px', cursor:'pointer', fontWeight:'bold'}}>Cancel Subscription</button>
                </div>
              )}
+
 
              <div style={{marginTop:'30px', padding:'20px', border:'1px solid #ddd', borderRadius:'8px'}}>
                <h3 style={{marginTop:0}}>Associated Invoices</h3>

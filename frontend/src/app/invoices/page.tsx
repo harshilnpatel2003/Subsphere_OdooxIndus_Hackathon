@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import withAuth from '@/components/withAuth';
 import DashboardLayout from '@/components/DashboardLayout';
+import { openRazorpayCheckout } from '@/lib/razorpay';
 
 function InvoicesPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -21,17 +22,14 @@ function InvoicesPage() {
 
   const payInvoice = async (id: number) => {
     setPaying(id);
-    try {
-      const res = await api.post('/payments/create-order/', { invoice_id: id });
-      alert(`Razorpay Order created: ${res.data.razorpay_order_id}. Simulating payment verification…`);
-      await api.post('/payments/verify/', { invoice_id: id, razorpay_signature: 'dummy' });
-      alert('Payment successful! Invoice marked as paid.');
-      fetchInvoices();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to process payment');
-    } finally {
-      setPaying(null);
-    }
+    await openRazorpayCheckout(
+      id,
+      () => {
+        fetchInvoices();
+        setPaying(null);
+      },
+      () => setPaying(null)
+    );
   };
 
   const statusClass = (s: string) => {
@@ -105,15 +103,21 @@ function InvoicesPage() {
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
-                      <a
-                        href={`http://localhost:8080/api/invoices/${inv.id}/pdf/`}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        onClick={async () => {
+                          try {
+                            const resp = await api.get(`/invoices/${inv.id}/pdf/`, { responseType: 'blob' });
+                            const url = URL.createObjectURL(new Blob([resp.data], { type: 'text/html' }));
+                            window.open(url, '_blank');
+                          } catch (err) {
+                            alert('Failed to load PDF');
+                          }
+                        }}
                         className="btn btn-secondary btn-sm"
                       >
                         <span className="material-icons" style={{ fontSize: 14 }}>open_in_new</span>
                         PDF
-                      </a>
+                      </button>
                       {inv.status !== 'paid' && (
                         <button
                           onClick={() => payInvoice(inv.id)}

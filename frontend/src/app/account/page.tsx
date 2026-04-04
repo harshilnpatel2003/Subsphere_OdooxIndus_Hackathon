@@ -128,6 +128,30 @@ function AccountPage() {
                 <p><strong>Account Type:</strong> {profile.role.replace('_', ' ').toUpperCase()}</p>
                 <p><strong>Member Since:</strong> {formatDate(profile.created_at)}</p>
                 <p><strong>Active Subscriptions:</strong> {subCount}</p>
+
+                {profile.role === 'portal_user' && !profile.manager_request_pending && (
+                  <button 
+                    onClick={async () => {
+                      if(window.confirm('Are you sure you want to request the Manager role?')) {
+                        try {
+                          await api.post('/users/me/request-manager/');
+                          setProfile({...profile, manager_request_pending: true});
+                          alert('Manager role requested successfully.');
+                        } catch(err) {
+                          alert('Failed to request manager role.');
+                        }
+                      }
+                    }}
+                    style={{marginTop: '15px', padding: '10px 15px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'}}
+                  >
+                    Request Manager Role
+                  </button>
+                )}
+                {profile.manager_request_pending && (
+                  <p style={{marginTop: '15px', color: '#888', fontWeight: 'bold'}}>
+                    Manager Role Requested (Pending Approval)
+                  </p>
+                )}
              </div>
 
              <form onSubmit={handleChangePassword} style={{padding:'20px', border:'1px solid #ddd', borderRadius:'8px'}}>

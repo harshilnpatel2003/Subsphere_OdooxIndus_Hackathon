@@ -19,7 +19,7 @@ class CustomUserManager(BaseUserManager):
 
 class Role(models.TextChoices):
     ADMIN = 'admin', 'Admin'
-    INTERNAL_USER = 'internal_user', 'Internal User'
+    MANAGER = 'manager', 'Manager'
     PORTAL_USER = 'portal_user', 'Portal User'
 
 class User(AbstractUser):
@@ -32,6 +32,7 @@ class User(AbstractUser):
         choices=Role.choices,
         default=Role.PORTAL_USER,
     )
+    manager_request_pending = models.BooleanField(default=False)
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

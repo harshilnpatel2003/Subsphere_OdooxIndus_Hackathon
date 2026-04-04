@@ -1,25 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import api from '@/lib/api';
-import PortalNav from '@/components/PortalNav';
-import { formatDate, formatINR } from '@/lib/formatters';
+import DashboardLayout from '@/components/DashboardLayout';
+import { formatINR } from '@/lib/formatters';
 import { openRazorpayCheckout } from '@/lib/razorpay';
 import withAuth from '@/components/withAuth';
-import Link from 'next/link';
 
 function InvoiceDetailPage() {
   const { invoiceId } = useParams();
-  const searchParams = useSearchParams();
-  const autoPay = searchParams.get('pay');
+  const router = useRouter();
   const [invoice, setInvoice] = useState<any>(null);
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState(false);
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, [invoiceId]);
 
   const fetchData = async () => {
     if (!invoiceId) return;
+    setLoading(true);
     try {
       const [iRes, pRes] = await Promise.all([
         api.get(`/invoices/${invoiceId}/`),
@@ -27,168 +31,215 @@ function InvoiceDetailPage() {
       ]);
       setInvoice(iRes.data);
       setPayments(pRes.data);
-      setLoading(false);
-      return iRes.data;
     } catch (err) {
       console.error(err);
+      router.push('/invoices');
+    } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData().then((inv) => {
-        if (autoPay === 'true' && inv && inv.status !== 'paid') {
-            handlePay();
-        }
-    });
-  }, [invoiceId]);
+  const executeAction = async (actionPath: string) => {
+    if (!invoice || processing) return;
+    setProcessing(true);
+    try {
+      await api.post(`/invoices/${invoice.id}/${actionPath}/`);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || `Error processing ${actionPath}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const fetchPdf = async () => {
+    try {
+      const resp = await api.get(`/invoices/${invoiceId}/pdf/`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([resp.data], { type: 'text/html' }));
+      window.open(url, '_blank');
+    } catch (err) {
+      alert('Failed to load invoice PDF');
+    }
+  };
 
   const handlePay = async () => {
-    if (!invoice || paying) return;
-    setPaying(true);
+    if (!invoice || processing) return;
+    setProcessing(true);
     await openRazorpayCheckout(
         invoice.id,
         () => {
-            setPaying(false);
+            setProcessing(false);
             fetchData();
         },
-        () => setPaying(false)
+        () => setProcessing(false)
     );
   };
 
-  if (loading) return <div><PortalNav /><div style={{padding:'20px'}}>Loading...</div></div>;
-  if (!invoice) return <div><PortalNav /><div style={{padding:'20px'}}>Invoice not found.</div></div>;
+  if (loading) return <DashboardLayout title="Invoice Detail"><div style={{padding:40, color:'var(--on-surface-variant)'}}>Loading invoice...</div></DashboardLayout>;
+  if (!invoice) return null;
+
+  const statusColor = (s: string) => {
+    if (s === 'paid') return 'var(--primary-container)';
+    if (s === 'draft') return 'var(--surface-container-high)';
+    if (s === 'cancelled') return 'var(--error-container)';
+    return 'var(--secondary-container)';
+  };
+  const statusOnColor = (s: string) => {
+    if (s === 'paid') return 'var(--on-primary-container)';
+    if (s === 'draft') return 'var(--on-surface)';
+    if (s === 'cancelled') return 'var(--on-error-container)';
+    return 'var(--on-secondary-container)';
+  };
 
   return (
-    <div>
-      <PortalNav />
-      <div style={{padding:'20px', maxWidth:'800px', margin:'0 auto'}}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
-          <div>
-            <Link href="/orders" style={{color:'#0070f3'}}>← Back to Orders</Link>
-            <h1 style={{marginTop:'10px'}}>Invoice {invoice.invoice_number}</h1>
-          </div>
-          <div style={{textAlign:'right'}}>
-             <span style={{
-                padding:'10px 20px', borderRadius:'25px', fontSize:'1em', fontWeight:'bold', textTransform:'uppercase',
-                background: invoice.status === 'paid' ? '#d4edda' : '#f8d7da',
-                color: invoice.status === 'paid' ? '#155724' : '#721c24'
-              }}>{invoice.status}</span>
-             <p style={{marginTop:'10px'}}><button onClick={() => window.print()} style={{padding:'8px 15px', background:'#eee', border:'1px solid #ddd', cursor:'pointer'}}>Print Invoice</button></p>
-          </div>
-        </div>
+    <DashboardLayout
+      title={`Invoice ${invoice.invoice_number}`}
+      subtitle={`Billing detail for customer: ${invoice.customer_email || invoice.customer_name || `CUST-${invoice.customer}`}`}
+      actions={
+        <div style={{ display: 'flex', gap: 8 }}>
+          {invoice.subscription && (
+            <Link href={`/subscriptions/${invoice.subscription}`} className="btn btn-secondary">
+              <span className="material-icons" style={{ fontSize: 16 }}>assignment</span>
+              Subscription
+            </Link>
+          )}
 
-        <div style={{marginTop:'30px', display:'flex', gap:'40px'}}>
-           <div style={{flex: 1}}>
-              <p><strong>Issue Date:</strong> {formatDate(invoice.issue_date)}</p>
-              <p><strong>Due Date:</strong> {formatDate(invoice.due_date)}</p>
-           </div>
-           <div style={{flex: 1, textAlign:'right'}}>
-              <h3>Bill To:</h3>
-              <p>{invoice.customer_name || 'Customer'}</p>
-              <p>{invoice.customer_email || invoice.customer}</p>
-           </div>
-        </div>
+          {invoice.status === 'draft' && (
+             <>
+               <button className="btn btn-primary" disabled={processing} onClick={() => executeAction('confirm')}>Confirm Invoice</button>
+               <button className="btn btn-secondary" disabled={processing} onClick={() => executeAction('cancel')}>Cancel</button>
+             </>
+          )}
 
-        <div style={{marginTop:'30px'}}>
-           <table style={{width:'100%', borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{background:'#f9f9f9', borderBottom:'1px solid #ddd'}}>
-                  <th style={{padding:'12px', textAlign:'left'}}>Description</th>
-                  <th style={{padding:'12px', textAlign:'center'}}>Qty</th>
-                  <th style={{padding:'12px', textAlign:'right'}}>Unit Price</th>
-                  <th style={{padding:'12px', textAlign:'right'}}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoice.lines?.map((line: any) => (
-                  <tr key={line.id} style={{borderBottom:'1px solid #eee'}}>
-                    <td style={{padding:'12px'}}>{line.description}</td>
-                    <td style={{padding:'12px', textAlign:'center'}}>{line.quantity}</td>
-                    <td style={{padding:'12px', textAlign:'right'}}>{formatINR(line.unit_price)}</td>
-                    <td style={{padding:'12px', textAlign:'right'}}>{formatINR(line.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-           </table>
-        </div>
+          {invoice.status === 'cancelled' && (
+             <button className="btn btn-primary" disabled={processing} onClick={() => executeAction('reset_to_draft')}>Reset to Draft</button>
+          )}
 
-        <div style={{marginTop:'30px', display:'flex', justifyContent:'flex-end'}}>
-           <div style={{width:'300px'}}>
-              <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
-                 <span>Subtotal:</span>
-                 <span>{formatINR(invoice.subtotal)}</span>
-              </div>
-              <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
-                 <span>Tax:</span>
-                 <span>{formatINR(invoice.tax_amount)}</span>
-              </div>
-              {parseFloat(invoice.discount_amount) > 0 && (
-                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px', color:'green'}}>
-                   <span>Discount:</span>
-                   <span>-{formatINR(invoice.discount_amount)}</span>
-                </div>
-              )}
-              <hr />
-              <div style={{display:'flex', justifyContent:'space-between', marginTop:'10px', fontWeight:'bold', fontSize:'1.4em'}}>
-                 <span>Total:</span>
-                 <span>{formatINR(invoice.total)}</span>
-              </div>
-              
-              {invoice.status !== 'paid' && (
-                <button 
-                    onClick={handlePay}
-                    disabled={paying}
-                    style={{
-                        width:'100%', 
-                        padding:'15px', 
-                        background:'#28a745', 
-                        color:'#fff', 
-                        border:'none', 
-                        borderRadius:'4px', 
-                        marginTop:'30px', 
-                        cursor:'pointer',
-                        fontWeight:'bold',
-                        fontSize:'1.1em'
-                    }}
-                >
-                  {paying ? 'Processing...' : `Pay ${formatINR(invoice.total)} Now`}
+          {(invoice.status === 'confirmed' || invoice.status === 'paid') && (
+            <>
+              {invoice.status === 'confirmed' && (
+                <button className="btn btn-primary" disabled={processing} onClick={handlePay}>
+                  <span className="material-icons" style={{ fontSize: 16 }}>payment</span> Pay Now
                 </button>
               )}
-           </div>
+              <button className="btn btn-secondary" onClick={fetchPdf}>
+                <span className="material-icons" style={{ fontSize: 16 }}>preview</span> Preview / Print
+              </button>
+              <button className="btn btn-secondary" onClick={() => alert('Sending email logic not connected yet.')}>
+                <span className="material-icons" style={{ fontSize: 16 }}>send</span> Send
+              </button>
+            </>
+          )}
+        </div>
+      }
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
+        
+        {/* Main Info */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Status Bar */}
+          <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', background: 'var(--surface-container-lowest)' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                 <div style={{
+                     padding: '6px 12px', borderRadius: 'var(--radius-full)',
+                     fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                     background: statusColor(invoice.status), color: statusOnColor(invoice.status)
+                 }}>
+                     {invoice.status}
+                 </div>
+                 <div style={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)' }}>
+                    Total: <span style={{ fontWeight: 600, color: 'var(--on-surface)' }}>{formatINR(invoice.total)}</span>
+                 </div>
+             </div>
+             <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>
+                 Created on {invoice.issue_date}
+             </div>
+          </div>
+
+          <div className="card">
+              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Invoice Lines</h2>
+              <table className="data-table">
+                  <thead>
+                      <tr>
+                          <th>Description</th>
+                          <th style={{ textAlign: 'center' }}>Qty</th>
+                          <th style={{ textAlign: 'right' }}>Unit Price</th>
+                          <th style={{ textAlign: 'right' }}>Total</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {invoice.lines?.map((l: any) => (
+                          <tr key={l.id}>
+                              <td>{l.description}</td>
+                              <td style={{ textAlign: 'center' }}>{l.quantity}</td>
+                              <td style={{ textAlign: 'right', color: 'var(--on-surface-variant)' }}>{formatINR(l.unit_price)}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatINR(l.amount)}</td>
+                          </tr>
+                      ))}
+                      {(!invoice.lines || invoice.lines.length === 0) && (
+                          <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--on-surface-variant)' }}>No lines found.</td></tr>
+                      )}
+                  </tbody>
+              </table>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
+                  <div style={{ width: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: 'var(--on-surface-variant)' }}>Subtotal</span>
+                          <span>{formatINR(invoice.subtotal)}</span>
+                      </div>
+                      {parseFloat(invoice.discount_amount) > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--primary)' }}>
+                              <span>Discount Applied</span>
+                              <span>-{formatINR(invoice.discount_amount)}</span>
+                          </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: 'var(--on-surface-variant)' }}>Taxes</span>
+                          <span>{formatINR(invoice.tax_amount)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.125rem', fontWeight: 700, borderTop: '1px solid var(--surface-container)', paddingTop: 12, marginTop: 4 }}>
+                          <span>Total</span>
+                          <span>{formatINR(invoice.total)}</span>
+                      </div>
+                  </div>
+              </div>
+          </div>
         </div>
 
-        {payments.length > 0 && (
-          <div style={{marginTop:'50px', paddingTop:'20px', borderTop:'2px solid #eee'}}>
-             <h3>Payment History</h3>
-             <table style={{width:'100%', borderCollapse:'collapse', marginTop:'10px'}}>
-                <thead>
-                   <tr style={{fontSize:'0.9em', color:'#666', borderBottom:'1px solid #ddd'}}>
-                      <th style={{padding:'10px', textAlign:'left'}}>Payment ID</th>
-                      <th style={{padding:'10px', textAlign:'left'}}>Method</th>
-                      <th style={{padding:'10px', textAlign:'right'}}>Amount</th>
-                      <th style={{padding:'10px', textAlign:'left'}}>Date</th>
-                      <th style={{padding:'10px', textAlign:'center'}}>Status</th>
-                   </tr>
-                </thead>
-                <tbody>
-                   {payments.map(p => (
-                     <tr key={p.id} style={{borderBottom:'1px solid #eee'}}>
-                        <td style={{padding:'10px'}}>{p.razorpay_payment_id || p.id}</td>
-                        <td style={{padding:'10px'}}>{p.method}</td>
-                        <td style={{padding:'10px', textAlign:'right'}}>{formatINR(p.amount)}</td>
-                        <td style={{padding:'10px'}}>{formatDate(p.paid_at)}</td>
-                        <td style={{padding:'10px', textAlign:'center'}}>
-                           <span style={{color:'green', fontSize:'0.8em', fontWeight:'bold'}}>{p.status.toUpperCase()}</span>
-                        </td>
-                     </tr>
-                   ))}
-                </tbody>
-             </table>
-          </div>
-        )}
+        {/* Sidebar Info */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="card">
+                <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', marginBottom: 12 }}>Financial Meta</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>Due Date</div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{invoice.due_date || 'Due on Receipt'}</div>
+                    </div>
+                </div>
+            </div>
+
+            {payments.length > 0 && (
+                <div className="card">
+                    <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Payment History</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {payments.map((p, i) => (
+                            <div key={i} style={{ paddingBottom: 12, borderBottom: i < payments.length - 1 ? '1px solid var(--surface-container)' : 'none' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: 4 }}>
+                                    <span style={{ fontWeight: 600 }}>{p.method}</span>
+                                    <span style={{ color: p.status === 'captured' ? 'var(--primary)' : 'var(--on-surface-variant)' }}>{p.status}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>
+                                    <span>{p.paid_at ? new Date(p.paid_at).toLocaleDateString() : '—'}</span>
+                                    <span>{formatINR(p.amount)}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

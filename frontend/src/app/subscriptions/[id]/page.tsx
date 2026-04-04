@@ -12,24 +12,42 @@ function SubscriptionDetailPage() {
   const id = params?.id;
   const [sub, setSub] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
-    api.get(`/subscriptions/${id}/`)
-      .then(res => setSub(res.data))
-      .catch(err => {
-        console.error(err);
-        router.push('/subscriptions');
-      })
-      .finally(() => setLoading(false));
+    fetchData();
   }, [id]);
 
-  const handleConfirm = async () => {
+  const fetchData = async () => {
+    if (!id) return;
+    setLoading(true);
     try {
-      await api.post(`/subscriptions/${id}/confirm/`);
-      api.get(`/subscriptions/${id}/`).then(res => setSub(res.data));
+      const res = await api.get(`/subscriptions/${id}/`);
+      setSub(res.data);
+    } catch (err) {
+      console.error(err);
+      router.push('/subscriptions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeAction = async (actionPath: string) => {
+    if (processing) return;
+    setProcessing(true);
+    try {
+      const res = await api.post(`/subscriptions/${id}/${actionPath}/`);
+      if (actionPath === 'create_invoice' && res.data.invoice_id) {
+        router.push(`/invoices/${res.data.invoice_id}`);
+      } else if (actionPath === 'upsell' && res.data.subscription_id) {
+        router.push(`/subscriptions/${res.data.subscription_id}`);
+      } else {
+        await fetchData();
+      }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Error confirming subscription');
+      alert(err.response?.data?.error || `Error during ${actionPath}`);
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -37,7 +55,8 @@ function SubscriptionDetailPage() {
     if (s === 'active') return 'badge-active';
     if (s === 'draft') return 'badge-draft';
     if (s === 'quotation') return 'badge-pending';
-    if (s === 'closed') return 'badge-closed';
+    if (s === 'quotation_sent') return 'badge-pending';
+    if (s === 'closed' || s === 'cancelled') return 'badge-closed';
     return 'badge-confirmed';
   };
 
@@ -57,27 +76,53 @@ function SubscriptionDetailPage() {
       subtitle={`Next billing date: ${sub.end_date || '—'}`}
       actions={
         <div style={{ display: 'flex', gap: 8 }}>
-          {(sub.status === 'draft' || sub.status === 'quotation') && (
-            <button className="btn btn-primary" onClick={handleConfirm}>
-              <span className="material-icons" style={{ fontSize: 16 }}>check_circle</span>
-              Confirm Subscription
+          {/* Draft/Quotation Phase Actions */}
+          {sub.status === 'quotation' && (
+            <button className="btn btn-primary" disabled={processing} onClick={() => executeAction('send_quotation')}>
+              <span className="material-icons" style={{ fontSize: 16 }}>send</span> Send Quotation
             </button>
           )}
-          <Link href="/subscriptions" className="btn btn-secondary">
-            <span className="material-icons" style={{ fontSize: 16 }}>arrow_back</span>
-            Back to List
+
+          {(sub.status === 'draft' || sub.status === 'quotation' || sub.status === 'quotation_sent') && (
+            <button className="btn btn-primary" disabled={processing} onClick={() => executeAction('confirm')}>
+              <span className="material-icons" style={{ fontSize: 16 }}>check_circle</span> Confirm Order
+            </button>
+          )}
+
+          {/* Active Phase Actions */}
+          {(sub.status === 'active' || sub.status === 'confirmed') && (
+            <>
+              <button className="btn btn-primary" disabled={processing} onClick={() => executeAction('create_invoice')}>
+                <span className="material-icons" style={{ fontSize: 16 }}>receipt</span> Create Invoice
+              </button>
+              <button className="btn btn-secondary" disabled={processing} onClick={() => executeAction('upsell')}>
+                <span className="material-icons" style={{ fontSize: 16 }}>arrow_upward</span> Upsell / Upgrade
+              </button>
+              <button className="btn btn-secondary" disabled={processing} onClick={() => executeAction('renew')}>
+                <span className="material-icons" style={{ fontSize: 16 }}>autorenew</span> Renew
+              </button>
+            </>
+          )}
+
+          {/* Destructive Actions */}
+          {sub.status !== 'cancelled' && sub.status !== 'closed' && (
+             <button className="btn btn-secondary" style={{ color: 'var(--error)' }} disabled={processing} onClick={() => executeAction('cancel')}>
+               <span className="material-icons" style={{ fontSize: 16 }}>cancel</span> Cancel Subscription
+             </button>
+          )}
+
+          <Link href="/subscriptions" className="btn btn-secondary" style={{ textDecoration: 'none' }}>
+            <span className="material-icons" style={{ fontSize: 16 }}>arrow_back</span> Back to List
           </Link>
         </div>
       }
     >
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
-
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
         {/* Main Info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
           {/* Status Banner */}
           <div className="card" style={{
-            borderLeft: `4px solid ${sub.status === 'active' ? 'var(--on-tertiary-container)' : sub.status === 'draft' ? 'var(--outline)' : 'var(--warning)'}`,
+            borderLeft: `4px solid ${sub.status === 'active' ? 'var(--on-tertiary-container)' : sub.status === 'draft' ? 'var(--outline)' : sub.status === 'error' || sub.status === 'cancelled' ? 'var(--error)' : 'var(--warning)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div>
@@ -90,19 +135,19 @@ function SubscriptionDetailPage() {
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', marginBottom: 2 }}>Subscription ID</div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', marginBottom: 2 }}>Order ID</div>
               <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--on-surface)', fontFamily: 'monospace' }}>
                 {sub.subscription_number || `SUB-${sub.id}`}
               </div>
             </div>
           </div>
 
-          {/* Subscription Items */}
+          {/* Items */}
           <div className="card">
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Subscription Items</h2>
-            {sub.order_lines && sub.order_lines.length > 0 ? (
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Order Items</h2>
+            {sub.lines && sub.lines.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {sub.order_lines.map((line: any, index: number) => (
+                {sub.lines.map((line: any, index: number) => (
                   <div key={index} style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '12px 0', borderBottom: '1px solid var(--surface-container)',
@@ -124,64 +169,32 @@ function SubscriptionDetailPage() {
               </div>
             )}
           </div>
-
-          {/* Subscription Logs */}
-          <div className="card">
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Subscription Logs</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {sub.invoices && sub.invoices.length > 0 ? sub.invoices.map((inv: any, i: number) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 16, padding: '12px 0',
-                  borderBottom: '1px solid var(--surface-container)',
-                }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: '50%', marginTop: 6,
-                    background: 'var(--on-tertiary-container)', flexShrink: 0,
-                  }} />
-                  <div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)' }}>
-                      Invoice Generated: {inv.invoice_number}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', marginTop: 2 }}>
-                      {inv.issue_date} · INR {inv.total}
-                    </div>
-                  </div>
-                </div>
-              )) : (
-                <div style={{ color: 'var(--on-surface-variant)', fontSize: '0.875rem', padding: '8px 0' }}>
-                  No activity logs yet.
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Sidebar info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          {/* Customer Card */}
-          <div className="card">
-            <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', marginBottom: 12 }}>Customer</div>
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--on-surface)', marginBottom: 4 }}>{sub.customer_name || '—'}</div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', marginBottom: 2 }}>{sub.customer_email || '—'}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--outline)', marginTop: 8, fontFamily: 'monospace' }}>
-              ID: CUST-{String(sub.customer || sub.id).padStart(4, '0')}
-            </div>
-          </div>
-
-          {/* Service Health */}
           <div className="card">
             <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', marginBottom: 12 }}>Service Health</div>
             {[
-              { label: 'Status', value: sub.status === 'active' ? 'Operational' : 'Inactive', color: sub.status === 'active' ? 'var(--on-tertiary-container)' : 'var(--on-surface-variant)' },
-              { label: 'Plan', value: sub.plan_name || '—', color: 'var(--on-surface)' },
-              { label: 'Billing Period', value: sub.billing_period || '—', color: 'var(--on-surface)' },
+              { label: 'Status', value: sub.status === 'active' ? 'Operational' : sub.status, color: sub.status === 'active' ? 'var(--on-tertiary-container)' : 'var(--on-surface-variant)' },
+              { label: 'Expiration', value: sub.expiration_date || 'None', color: 'var(--on-surface)' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--surface-container)' }}>
                 <span style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>{label}</span>
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600, color }}>{value}</span>
               </div>
             ))}
+          </div>
+
+          <div className="card">
+             <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Related Invoices</h2>
+             {/* If invoices are serialized inside subscription get request, we could show them here. But for now we use a generic link since API payload doesn't return invoices perfectly nested yet in this specific route without custom serializer injection. */}
+             <div style={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)' }}>
+                 Invoices generated against this order are tracked in your ledger dynamically. You can review them in the main ledger dashboard.
+             </div>
+             <Link href={`/invoices?subscription=${sub.id}`} className="btn btn-secondary btn-sm" style={{ marginTop: 12, display: 'inline-flex', textDecoration: 'none' }}>
+                 View Financial Ledger
+             </Link>
           </div>
         </div>
       </div>

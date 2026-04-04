@@ -1,7 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
+import api from '@/lib/api';
 
 const navItems = [
   { href: '/dashboard',     icon: 'dashboard',      label: 'Dashboard' },
@@ -10,17 +12,29 @@ const navItems = [
   { href: '/products',      icon: 'auto_stories',   label: 'Catalog' },
   { href: '/invoices',      icon: 'receipt_long',   label: 'Invoices' },
   { href: '/reports',       icon: 'assessment',     label: 'Reports' },
+  { href: '/users',         icon: 'people',         label: 'Users', adminOnly: true },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    api.get('/users/me/')
+      .then(res => setUser(res.data))
+      .catch(console.error);
+  }, []);
 
   const handleSignOut = () => {
     Cookies.remove('access');
     Cookies.remove('refresh');
     router.push('/login');
   };
+
+  const displayName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : 'Loading...';
+  const displayRole = user?.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1)) : 'Admin';
+  const initial = displayName.charAt(0).toUpperCase();
 
   return (
     <aside style={{
@@ -51,7 +65,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        {navItems.map(({ href, icon, label }) => {
+        {navItems.filter(item => !item.adminOnly || user?.role === 'admin').map(({ href, icon, label }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link
@@ -92,6 +106,7 @@ export default function Sidebar() {
             display: 'flex', alignItems: 'center', gap: '12px',
             padding: '10px 12px', borderRadius: 'var(--radius-md)',
             color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginBottom: '2px',
+            textDecoration: 'none'
           }}
         >
           <span className="material-icons" style={{ fontSize: 18, color: 'rgba(255,255,255,0.4)' }}>help_outline</span>
@@ -110,24 +125,31 @@ export default function Sidebar() {
           Sign Out
         </button>
 
-        {/* User pill */}
-        <div style={{
-          marginTop: 16, display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 12px', borderRadius: 'var(--radius-md)',
-          background: 'rgba(255,255,255,0.06)',
-        }}>
+        {/* User pill — click to go to Profile */}
+        <Link
+          href="/profile"
+          style={{
+            marginTop: 16, display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 12px', borderRadius: 'var(--radius-md)',
+            background: 'rgba(255,255,255,0.06)',
+            textDecoration: 'none',
+            transition: 'background 0.15s ease',
+          }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'}
+        >
           <div style={{
             width: 32, height: 32, borderRadius: '50%',
             background: 'var(--secondary-container)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 13, fontWeight: 700, color: 'var(--on-secondary-container)',
             flexShrink: 0,
-          }}>A</div>
+          }}>{initial}</div>
           <div>
-            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>Alex Sterling</div>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>FinOps Admin</div>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff' }}>{displayName}</div>
+            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{displayRole}</div>
           </div>
-        </div>
+        </Link>
       </div>
     </aside>
   );

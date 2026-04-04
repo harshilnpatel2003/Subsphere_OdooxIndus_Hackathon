@@ -18,6 +18,76 @@ function Dashboard() {
 
   const recentSubs = subs.slice(0, 4);
 
+  const colors = [
+    'var(--primary-container)', 
+    'var(--secondary-container)', 
+    'var(--tertiary-container)', 
+    'var(--surface-container-highest)'
+  ];
+
+  const renderRevenueMix = () => {
+    if (!reports?.revenue_by_plan || reports.revenue_by_plan.length === 0) {
+      return (
+        <div style={{ color: 'var(--on-surface-variant)', fontSize: '0.875rem' }}>
+          Not enough payment data.
+        </div>
+      );
+    }
+    const mixData = reports.revenue_by_plan;
+    return mixData.map((item: any, i: number) => {
+      const pct = (reports.total_revenue > 0) ? Math.round((item.amount / reports.total_revenue) * 100) : 0;
+      return (
+        <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', width: 84, flexShrink: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            {item.label}
+          </div>
+          <div style={{ flex: 1, height: 28, borderRadius: 'var(--radius-md)', background: 'var(--surface-container)', overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: colors[i % colors.length], borderRadius: 'var(--radius-md)', transition: 'width 0.8s ease' }} />
+          </div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface)', fontWeight: 600, width: 36 }}>{pct}%</div>
+        </div>
+      );
+    });
+  };
+
+  const dynamicAlerts = [];
+  if (reports?.overdue_amount > 0) {
+    dynamicAlerts.push({
+      icon: 'warning_amber',
+      title: 'Overdue Payments',
+      body: `You have INR ${Number(reports.overdue_amount).toLocaleString()} accumulated in overdue invoices.`,
+      color: 'var(--warning-container)',
+      iconColor: 'var(--warning)',
+    });
+  }
+  if (reports?.new_subscriptions_this_month > 0) {
+    dynamicAlerts.push({
+      icon: 'trending_up',
+      title: 'Growth Accelerating',
+      body: `${reports.new_subscriptions_this_month} new subscriptions successfully confirmed this month.`,
+      color: 'var(--tertiary-container)',
+      iconColor: 'var(--on-tertiary-container)',
+    });
+  }
+  if (reports?.outstanding_invoices > 0) {
+    dynamicAlerts.push({
+      icon: 'receipt_long',
+      title: 'Invoices Awaiting Payment',
+      body: `${reports.outstanding_invoices} confirmed invoices are awaiting checkout by customers.`,
+      color: 'var(--primary-fixed)',
+      iconColor: 'var(--primary-container)',
+    });
+  }
+  if (dynamicAlerts.length === 0) {
+    dynamicAlerts.push({
+      icon: 'check_circle',
+      title: 'All clear',
+      body: 'No immediate action items found. Systems performant.',
+      color: 'var(--secondary-container)',
+      iconColor: 'var(--on-secondary-container)',
+    });
+  }
+
   return (
     <DashboardLayout
       title="Executive Overview"
@@ -26,10 +96,10 @@ function Dashboard() {
       {/* KPI Strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
         {[
-          { label: 'Active Subscriptions', value: reports?.total_active ?? '—', icon: 'subscriptions', change: '+402 new since last week' },
-          { label: 'Monthly Revenue', value: reports?.mrr ? `$${Number(reports.mrr).toLocaleString()}` : '—', icon: 'trending_up', change: '' },
-          { label: 'Outstanding Invoices', value: reports?.outstanding_invoices ?? '—', icon: 'receipt_long', change: 'Awaiting payment' },
-          { label: 'Churn Rate', value: reports?.churn_rate ? `${reports.churn_rate}%` : '—', icon: 'monitor_heart', change: '' },
+          { label: 'Active Subscriptions', value: reports?.active_subscriptions ?? '—', icon: 'subscriptions', change: reports ? `${reports.new_subscriptions_this_month} new this month` : '' },
+          { label: 'Total Revenue', value: reports?.total_revenue ? `INR ${Number(reports.total_revenue).toLocaleString()}` : '—', icon: 'trending_up', change: reports ? `INR ${reports.payments_this_month} collected recently` : '' },
+          { label: 'Outstanding Invoices', value: reports?.outstanding_invoices ?? '—', icon: 'receipt_long', change: reports?.outstanding_invoices > 0 ? 'Awaiting payment' : 'Up to date' },
+          { label: 'Overdue Balance', value: reports?.overdue_amount ? `INR ${Number(reports.overdue_amount).toLocaleString()}` : '—', icon: 'account_balance_wallet', change: '' },
         ].map(({ label, value, icon, change }) => (
           <div key={label} className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -44,39 +114,27 @@ function Dashboard() {
 
       {/* Main Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
-
+        
         {/* Revenue Mix Placeholder + New Subs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Chart Card */}
           <div className="card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)' }}>Revenue Mix by Tier</h2>
+              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)' }}>Revenue Mix</h2>
               <span style={{
                 fontSize: '0.75rem', color: 'var(--on-surface-variant)',
                 background: 'var(--surface-container)', padding: '3px 10px', borderRadius: 'var(--radius-full)',
-              }}>Q3 FY 2024</span>
+              }}>All-Time Breakdown</span>
             </div>
-            {/* Stacked bar placeholder */}
-            <div style={{ height: 128, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { label: 'Enterprise', width: '52%', color: 'var(--primary-container)' },
-                { label: 'Growth', width: '30%', color: 'var(--secondary-container)' },
-                { label: 'Startup', width: '18%', color: 'var(--surface-container-highest)' },
-              ].map(({ label, width, color }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', width: 72, flexShrink: 0 }}>{label}</div>
-                  <div style={{ flex: 1, height: 28, borderRadius: 'var(--radius-md)', background: 'var(--surface-container)', overflow: 'hidden' }}>
-                    <div style={{ width, height: '100%', background: color, borderRadius: 'var(--radius-md)', transition: 'width 0.8s ease' }} />
-                  </div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface)', fontWeight: 600, width: 36 }}>{width}</div>
-                </div>
-              ))}
+            {/* Dynamic rendering */}
+            <div style={{ height: 128, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+              {renderRevenueMix()}
             </div>
           </div>
 
           {/* Recent Subscriptions */}
           <div className="card">
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>New Subscriptions This Month</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Newest Subscriptions</h2>
             {recentSubs.length === 0 ? (
               <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.875rem' }}>No subscriptions yet.</p>
             ) : (
@@ -93,7 +151,7 @@ function Dashboard() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 13, fontWeight: 700, color: 'var(--on-secondary-container)', flexShrink: 0,
                       }}>
-                        {(s.subscription_number || s.id).toString()[0].toUpperCase()}
+                        {(s.subscription_number || String(s.id))[0].toUpperCase()}
                       </div>
                       <div>
                         <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface)' }}>
@@ -114,29 +172,7 @@ function Dashboard() {
 
         {/* Alerts Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {[
-            {
-              icon: 'event',
-              title: 'Upcoming Audit',
-              body: 'Prepare tax compliance report for EMEA region',
-              color: 'var(--primary-fixed)',
-              iconColor: 'var(--primary-container)',
-            },
-            {
-              icon: 'warning_amber',
-              title: 'Churn Risk Alert',
-              body: '3 subscriptions show decreased activity (>-25%) in the last 14 days.',
-              color: 'var(--warning-container)',
-              iconColor: 'var(--warning)',
-            },
-            {
-              icon: 'speed',
-              title: 'System Health',
-              body: 'Gateway Latency: 142ms · Transaction Success Rate: 99.8%',
-              color: 'var(--tertiary-container)',
-              iconColor: 'var(--on-tertiary-container)',
-            },
-          ].map(({ icon, title, body, color, iconColor }) => (
+          {dynamicAlerts.map(({ icon, title, body, color, iconColor }) => (
             <div key={title} style={{
               background: 'var(--surface-container-lowest)',
               borderRadius: 'var(--radius-lg)',

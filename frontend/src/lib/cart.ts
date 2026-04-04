@@ -8,6 +8,7 @@ export interface CartItem {
   unitPrice: number;
   taxId: string | null;
   variantId: string | null;
+  productPhoto: string | null;
 }
 export interface Cart { items: CartItem[]; discountCode: string | null; discountAmount: number; }
 const CART_KEY = 'subsphere_cart';

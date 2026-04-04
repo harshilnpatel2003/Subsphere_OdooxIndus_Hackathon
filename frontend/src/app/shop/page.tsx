@@ -25,7 +25,7 @@ export default function ShopPage() {
   const handleTypeChange = (val: string) => { setTypeFilter(val); fetchProducts(val); };
 
   const addPlanToCart = (plan: any) => {
-    addToCart({ productId: `plan_${plan.id}`, productName: plan.name, planId: String(plan.id), planName: plan.name, billingPeriod: plan.billing_period, quantity: 1, unitPrice: Number(plan.price), taxId: null, variantId: null });
+    addToCart({ productId: `plan_${plan.id}`, productName: plan.name, planId: String(plan.id), planName: plan.name, billingPeriod: plan.billing_period, quantity: 1, unitPrice: Number(plan.price), taxId: null, variantId: null, productPhoto: null });
     setMsg(`✓ ${plan.name} added to cart`);
     setTimeout(() => setMsg(''), 2000);
   };
@@ -47,11 +47,18 @@ export default function ShopPage() {
         <h2>Products</h2>
         <div style={{display:'flex',gap:'15px',flexWrap:'wrap',marginTop:'10px'}}>
           {products.map(p => (
-            <div key={p.id} style={{border:'1px solid #ddd',padding:'15px',width:'220px'}}>
+            <div key={p.id} style={{border:'1px solid #ddd',padding:'15px',width:'220px', display:'flex', flexDirection:'column'}}>
+              <div style={{width:'100%', height:'150px', background:'#f5f5f5', marginBottom:'10px', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', borderRadius:'4px'}}>
+                {p.photo ? (
+                  <img src={p.photo} alt={p.name} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                ) : (
+                  <span className="material-icons" style={{fontSize: 48, color:'#ccc'}}>image</span>
+                )}
+              </div>
               <h3 style={{margin:'0 0 5px'}}>{p.name}</h3>
-              <span style={{background:'#eee',padding:'2px 6px',fontSize:'0.8em',borderRadius:'3px'}}>{p.product_type}</span>
+              <span style={{background:'#eee',padding:'2px 6px',fontSize:'0.8em',borderRadius:'3px', alignSelf:'flex-start'}}>{p.product_type}</span>
               <p style={{fontWeight:'bold',margin:'10px 0 5px'}}>{formatINR(p.sales_price)}</p>
-              <Link href={`/shop/${p.id}`} style={{color:'#0070f3'}}>View Details →</Link>
+              <Link href={`/shop/${p.id}`} style={{color:'#0070f3', marginTop:'auto'}}>View Details →</Link>
             </div>
           ))}
           {products.length === 0 && <p>No products found.</p>}

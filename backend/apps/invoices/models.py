@@ -7,14 +7,17 @@ class InvoiceStatus(models.TextChoices):
     DRAFT = 'draft', 'Draft'
     CONFIRMED = 'confirmed', 'Confirmed'
     PAID = 'paid', 'Paid'
+    CANCELLED = 'cancelled', 'Cancelled'
 
 class Invoice(models.Model):
     invoice_number = models.CharField(max_length=50, unique=True, blank=True)
     subscription = models.ForeignKey(Subscription, on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices')
     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invoices')
-    issue_date = models.DateField(default=timezone.now)
+    issue_date = models.DateField(default=timezone.localdate)
     due_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.DRAFT)
+    razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
     
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)

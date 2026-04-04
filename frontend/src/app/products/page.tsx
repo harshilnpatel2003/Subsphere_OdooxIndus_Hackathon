@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import api from '@/lib/api';
 import withAuth from '@/components/withAuth';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -31,10 +32,10 @@ function ProductsPage() {
       title="Product Catalog"
       subtitle="Manage services and physical products across your subscription ecosystem."
       actions={
-        <button className="btn btn-primary">
+        <Link href="/products/new" className="btn btn-primary" style={{ textDecoration: 'none' }}>
           <span className="material-icons" style={{ fontSize: 16 }}>add</span>
           Add Product
-        </button>
+        </Link>
       }
     >
       {/* Stats */}
@@ -85,12 +86,17 @@ function ProductsPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                   <div style={{
-                    width: 40, height: 40, borderRadius: 'var(--radius-md)',
+                    width: 48, height: 48, borderRadius: 'var(--radius-md)',
                     background: 'var(--primary-fixed)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden', border: '1px solid var(--surface-container-high)',
                   }}>
-                    <span className="material-icons" style={{ fontSize: 20, color: 'var(--primary-container)' }}>
-                      {p.product_type === 'service' ? 'cloud' : 'inventory_2'}
-                    </span>
+                    {p.photo ? (
+                      <img src={p.photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span className="material-icons" style={{ fontSize: 24, color: 'var(--primary-container)' }}>
+                        {p.product_type === 'service' ? 'cloud' : 'inventory_2'}
+                      </span>
+                    )}
                   </div>
                   <span className="badge" style={{ background: tc.bg, color: tc.color }}>
                     {p.product_type || 'product'}

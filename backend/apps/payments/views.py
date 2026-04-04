@@ -40,6 +40,16 @@ class CreateOrderView(views.APIView):
         except Invoice.DoesNotExist:
             return Response({'error': 'Invoice not found'}, status=404)
 
+        # If the invoice already has a razorpay_order_id, try to use it
+        if invoice.razorpay_order_id and not invoice.razorpay_order_id.startswith('order_mock_'):
+            return Response({
+                'razorpay_order_id': invoice.razorpay_order_id,
+                'amount': max(int(float(invoice.total) * 100), 100),
+                'key_id': settings.RAZORPAY_KEY_ID,
+                'invoice_id': invoice.id,
+                'currency': 'INR',
+            })
+
         amount_paise = max(int(float(invoice.total) * 100), 100)  # Razorpay minimum 1 INR
         data = {
             "amount": amount_paise,
@@ -54,6 +64,10 @@ class CreateOrderView(views.APIView):
                 'id': f'order_mock_{invoice.id}',
                 'amount': amount_paise,
             }
+
+        # Store the razorpay order id on the invoice
+        invoice.razorpay_order_id = order['id']
+        invoice.save()
 
         return Response({
             'razorpay_order_id': order['id'],
@@ -102,6 +116,7 @@ class VerifyPaymentView(views.APIView):
         )
 
         invoice.status = InvoiceStatus.PAID
+        invoice.razorpay_payment_id = razorpay_payment_id or 'mock'
         invoice.save()
 
         if invoice.subscription and invoice.subscription.status != SubscriptionStatus.ACTIVE:

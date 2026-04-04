@@ -47,8 +47,16 @@ class PasswordResetSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'phone', 'role', 'created_at')
-        read_only_fields = ('email', 'role', 'created_at')
+        fields = ('id', 'email', 'first_name', 'last_name', 'phone', 'role', 'manager_request_pending', 'created_at')
+        read_only_fields = ('email', 'role', 'manager_request_pending', 'created_at')
+
+class UserListSerializer(serializers.ModelSerializer):
+    active_subscriptions = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = User
+        fields = ('id', 'email', 'first_name', 'last_name', 'role', 'manager_request_pending', 'created_at', 'active_subscriptions')
+        read_only_fields = ('id', 'email', 'first_name', 'last_name', 'role', 'manager_request_pending', 'created_at', 'active_subscriptions')
 
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(required=True)

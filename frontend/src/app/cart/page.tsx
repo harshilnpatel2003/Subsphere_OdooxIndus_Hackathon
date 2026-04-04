@@ -104,6 +104,7 @@ function CartPage() {
               <table style={{width:'100%', borderCollapse:'collapse'}}>
                 <thead>
                   <tr style={{background:'#f9f9f9', borderBottom:'1px solid #ddd'}}>
+                    <th style={{padding:'10px', textAlign:'left'}}>Image</th>
                     <th style={{padding:'10px', textAlign:'left'}}>Product</th>
                     <th style={{padding:'10px', textAlign:'center'}}>Qty</th>
                     <th style={{padding:'10px', textAlign:'right'}}>Price</th>
@@ -114,6 +115,15 @@ function CartPage() {
                 <tbody>
                   {cart.items.map((item, idx) => (
                     <tr key={idx} style={{borderBottom:'1px solid #eee'}}>
+                      <td style={{padding:'10px'}}>
+                        <div style={{width:'50px', height:'50px', background:'#f5f5f5', borderRadius:'4px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                          {item.productPhoto ? (
+                            <img src={item.productPhoto} alt={item.productName} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                          ) : (
+                            <span className="material-icons" style={{fontSize: 24, color:'#ccc', fontFamily:'Material Icons'}}>image</span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{padding:'10px'}}>
                         <strong>{item.productName}</strong>
                         {item.planName && <div style={{fontSize:'0.8em', color:'#666'}}>{item.planName} ({item.billingPeriod})</div>}

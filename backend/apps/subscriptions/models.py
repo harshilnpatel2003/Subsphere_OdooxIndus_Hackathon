@@ -8,17 +8,28 @@ from django.utils import timezone
 class SubscriptionStatus(models.TextChoices):
     DRAFT = 'draft', 'Draft'
     QUOTATION = 'quotation', 'Quotation'
+    QUOTATION_SENT = 'quotation_sent', 'Quotation Sent'
     CONFIRMED = 'confirmed', 'Confirmed'
     ACTIVE = 'active', 'Active'
     CLOSED = 'closed', 'Closed'
+    CANCELLED = 'cancelled', 'Cancelled'
+
+class PaymentTerm(models.Model):
+    name = models.CharField(max_length=100)
+    due_days = models.PositiveIntegerField(default=0, help_text="Days after order date until due")
+    is_first_payment_discount = models.BooleanField(default=False)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+
+    def __str__(self):
+        return self.name
 
 class Subscription(models.Model):
     subscription_number = models.CharField(max_length=50, unique=True, blank=True)
     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True, blank=True)
-    start_date = models.DateField(default=timezone.now)
+    start_date = models.DateField(default=timezone.localdate)
     expiration_date = models.DateField(null=True, blank=True)
-    payment_terms = models.CharField(max_length=100, blank=True, null=True)
+    payment_terms = models.ForeignKey(PaymentTerm, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, choices=SubscriptionStatus.choices, default=SubscriptionStatus.DRAFT)
     
     def save(self, *args, **kwargs):

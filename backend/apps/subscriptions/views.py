@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
-from .models import Subscription, SubscriptionStatus, QuotationTemplate, SubscriptionLine
-from .serializers import SubscriptionSerializer, QuotationTemplateSerializer
+from .models import Subscription, SubscriptionStatus, QuotationTemplate, SubscriptionLine, PaymentTerm
+from .serializers import SubscriptionSerializer, QuotationTemplateSerializer, PaymentTermSerializer
 from apps.invoices.models import Invoice, InvoiceLine, InvoiceStatus
 from apps.users.models import Role
 
@@ -19,6 +19,11 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         # Portal users can only see their own subscriptions
         if user.role == Role.PORTAL_USER:
             qs = qs.filter(customer=user)
+        else:
+            # Admins/managers can filter by customer ID
+            customer_id = self.request.query_params.get('customer')
+            if customer_id and customer_id != 'me':
+                qs = qs.filter(customer_id=customer_id)
         status_param = self.request.query_params.get('status')
         if status_param:
             qs = qs.filter(status=status_param)
@@ -34,11 +39,11 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-    def _generate_invoice(self, sub):
+    def _generate_invoice(self, sub, draft=False):
         invoice = Invoice.objects.create(
             subscription=sub,
             customer=sub.customer,
-            status=InvoiceStatus.CONFIRMED,
+            status=InvoiceStatus.DRAFT if draft else InvoiceStatus.CONFIRMED,
         )
         subtotal = 0
         tax_total = 0
@@ -54,9 +59,21 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             subtotal += line.amount
             if line.tax:
                 tax_total += (line.amount * line.tax.rate / 100)
+                
+        discount_amount = 0
+        if sub.payment_terms and sub.payment_terms.discount_percentage > 0:
+            discount_amount = (subtotal * sub.payment_terms.discount_percentage) / 100
+            
         invoice.subtotal = subtotal
+        invoice.discount_amount = discount_amount
         invoice.tax_amount = tax_total
-        invoice.total = subtotal + tax_total
+        invoice.total = subtotal - discount_amount + tax_total
+        
+        from django.utils import timezone
+        import datetime
+        if sub.payment_terms and sub.payment_terms.due_days > 0:
+            invoice.due_date = timezone.now().date() + datetime.timedelta(days=sub.payment_terms.due_days)
+            
         invoice.save()
         return invoice
 
@@ -129,6 +146,68 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         sub.save()
         return Response({'status': 'renewed'})
 
+    @action(detail=True, methods=['post'])
+    def upsell(self, request, pk=None):
+        sub = self.get_object()
+        new_sub = Subscription.objects.create(
+            customer=sub.customer,
+            plan=sub.plan,
+            payment_terms=sub.payment_terms,
+            status=SubscriptionStatus.DRAFT
+        )
+        for line in sub.lines.all():
+            SubscriptionLine.objects.create(
+                subscription=new_sub,
+                product=line.product,
+                quantity=line.quantity,
+                unit_price=line.unit_price,
+                tax=line.tax,
+            )
+        return Response({'status': 'upsell created', 'subscription_id': new_sub.id})
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        sub = self.get_object()
+        sub.status = SubscriptionStatus.CANCELLED
+        sub.save()
+        return Response({'status': 'cancelled'})
+
+    @action(detail=True, methods=['post'])
+    def send_quotation(self, request, pk=None):
+        sub = self.get_object()
+        if sub.status == SubscriptionStatus.QUOTATION:
+            sub.status = SubscriptionStatus.QUOTATION_SENT
+            sub.save()
+            return Response({'status': 'quotation_sent'})
+        return Response({'error': 'Can only send quotation.'}, status=400)
+
+    @action(detail=True, methods=['post'])
+    def create_invoice(self, request, pk=None):
+        sub = self.get_object()
+        invoice = self._generate_invoice(sub, draft=True)
+        return Response({'invoice_id': invoice.id})
+
+    @action(detail=True, methods=['post'])
+    def accept_quotation(self, request, pk=None):
+        """Customer accepts a quotation → confirm subscription + create invoice."""
+        sub = self.get_object()
+        if sub.status not in [SubscriptionStatus.QUOTATION, SubscriptionStatus.QUOTATION_SENT]:
+            return Response({'error': 'Subscription is not a quotation.'}, status=status.HTTP_400_BAD_REQUEST)
+        sub.status = SubscriptionStatus.CONFIRMED
+        sub.save()
+        invoice = self._generate_invoice(sub, draft=False)  # confirmed invoice ready for payment
+        return Response({'invoice_id': invoice.id, 'status': 'accepted'})
+
+    @action(detail=True, methods=['post'])
+    def reject_quotation(self, request, pk=None):
+        """Customer rejects a quotation → cancel subscription."""
+        sub = self.get_object()
+        if sub.status not in [SubscriptionStatus.QUOTATION, SubscriptionStatus.QUOTATION_SENT]:
+            return Response({'error': 'Subscription is not a quotation.'}, status=status.HTTP_400_BAD_REQUEST)
+        sub.status = SubscriptionStatus.CANCELLED
+        sub.save()
+        return Response({'status': 'rejected'})
+
 
 class QuotationTemplateViewSet(viewsets.ModelViewSet):
     queryset = QuotationTemplate.objects.all()
@@ -152,3 +231,7 @@ class QuotationTemplateViewSet(viewsets.ModelViewSet):
                 unit_price=line.product.sales_price,
             )
         return Response({'subscription_id': sub.id})
+
+class PaymentTermViewSet(viewsets.ModelViewSet):
+    queryset = PaymentTerm.objects.all()
+    serializer_class = PaymentTermSerializer

@@ -58,6 +58,7 @@ export default function ProductDetailPage() {
       unitPrice: finalUnitPrice,
       taxId: taxes.length > 0 ? String(taxes[0].id) : null, // Default to first tax for demo
       variantId: selectedVariant ? String(selectedVariant.id) : null,
+      productPhoto: product.photo,
     });
     
     setMsg('✓ Added to cart');
@@ -76,6 +77,15 @@ export default function ProductDetailPage() {
         <Link href="/shop" style={{color:'#0070f3'}}>← Back to Shop</Link>
         
         <div style={{marginTop:'20px', display:'flex', gap:'40px'}}>
+          <div style={{width:'300px'}}>
+            <div style={{width:'100%', aspectRatio:'1/1', background:'#f5f5f5', borderRadius:'8px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', border:'1px solid #eee'}}>
+              {product.photo ? (
+                <img src={product.photo} alt={product.name} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+              ) : (
+                <span className="material-icons" style={{fontSize: 80, color:'#ccc', fontFamily:'Material Icons'}}>image</span>
+              )}
+            </div>
+          </div>
           <div style={{flex: 1}}>
             <h1>{product.name}</h1>
             <span style={{background:'#eee', padding:'2px 8px', borderRadius:'4px', fontSize:'0.9em'}}>{product.product_type}</span>
