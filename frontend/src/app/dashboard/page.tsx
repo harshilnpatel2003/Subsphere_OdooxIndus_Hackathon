@@ -1,74 +1,161 @@
 'use client';
-import withAuth from '@/components/withAuth';
-import Navbar from '@/components/Navbar';
-import Cookies from 'js-cookie';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 import api from '@/lib/api';
+import withAuth from '@/components/withAuth';
+import DashboardLayout from '@/components/DashboardLayout';
 
 function Dashboard() {
   const router = useRouter();
   const [reports, setReports] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
   const [subs, setSubs] = useState<any[]>([]);
 
   useEffect(() => {
     api.get('/reports/summary/').then(res => setReports(res.data)).catch(console.error);
-    api.get('/products/').then(res => setProducts(res.data)).catch(console.error);
     api.get('/subscriptions/').then(res => setSubs(res.data)).catch(console.error);
   }, []);
 
-  const handleLogout = () => {
-    Cookies.remove('access');
-    Cookies.remove('refresh');
-    router.push('/login');
-  };
+  const recentSubs = subs.slice(0, 4);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
-        <h1>SubSphere Administrative Dashboard</h1>
-        <button onClick={handleLogout} style={{ padding: '5px 10px', background: 'red', color: 'white', cursor: 'pointer', border: 'none', borderRadius: '4px' }}>Logout</button>
-      </header>
-      
-      <div style={{ marginTop: '20px' }}>
-         <Navbar />
+    <DashboardLayout
+      title="Executive Overview"
+      subtitle="Real-time ledger state for current fiscal reporting period"
+    >
+      {/* KPI Strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+        {[
+          { label: 'Active Subscriptions', value: reports?.total_active ?? '—', icon: 'subscriptions', change: '+402 new since last week' },
+          { label: 'Monthly Revenue', value: reports?.mrr ? `$${Number(reports.mrr).toLocaleString()}` : '—', icon: 'trending_up', change: '' },
+          { label: 'Outstanding Invoices', value: reports?.outstanding_invoices ?? '—', icon: 'receipt_long', change: 'Awaiting payment' },
+          { label: 'Churn Rate', value: reports?.churn_rate ? `${reports.churn_rate}%` : '—', icon: 'monitor_heart', change: '' },
+        ].map(({ label, value, icon, change }) => (
+          <div key={label} className="stat-card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span className="stat-card__label">{label}</span>
+              <span className="material-icons" style={{ fontSize: 18, color: 'var(--primary-container)', opacity: 0.7 }}>{icon}</span>
+            </div>
+            <div className="stat-card__value">{value}</div>
+            {change && <div className="stat-card__change" style={{ fontSize: '0.75rem', color: 'var(--on-tertiary-container)' }}>{change}</div>}
+          </div>
+        ))}
       </div>
 
-      <main style={{ marginTop: '20px', display: 'flex', gap: '20px' }}>
-        <section style={{ flex: 1, border: '1px solid #eee', padding: '10px' }}>
-          <h2>Reports Summary</h2>
-          {reports ? <pre>{JSON.stringify(reports, null, 2)}</pre> : <p>Loading reports...</p>}
-        </section>
-        
-        <section style={{ flex: 1, border: '1px solid #eee', padding: '10px' }}>
-          <h2>Products Catalog</h2>
-          {products.map(p => (
-            <div key={p.id} style={{ marginBottom: '10px', padding: '10px', border: '1px solid #ddd' }}>
-              <strong>{p.name}</strong> - INR {p.sales_price}
-              <br/><small>{p.product_type} | Recurring: {p.is_recurring ? 'Yes' : 'No'}</small>
-            </div>
-          ))}
-          {products.length === 0 && <p>No products found.</p>}
-        </section>
+      {/* Main Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
 
-        <section style={{ flex: 1, border: '1px solid #eee', padding: '10px' }}>
-          <h2>Recent Subscriptions</h2>
-          {subs.map(s => (
-            <div key={s.id} style={{ marginBottom: '10px', padding: '10px', border: '1px solid #ddd' }}>
-              <strong>{s.subscription_number}</strong>
-              <br/><small>Status: {s.status}</small>
+        {/* Revenue Mix Placeholder + New Subs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Chart Card */}
+          <div className="card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)' }}>Revenue Mix by Tier</h2>
+              <span style={{
+                fontSize: '0.75rem', color: 'var(--on-surface-variant)',
+                background: 'var(--surface-container)', padding: '3px 10px', borderRadius: 'var(--radius-full)',
+              }}>Q3 FY 2024</span>
+            </div>
+            {/* Stacked bar placeholder */}
+            <div style={{ height: 128, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { label: 'Enterprise', width: '52%', color: 'var(--primary-container)' },
+                { label: 'Growth', width: '30%', color: 'var(--secondary-container)' },
+                { label: 'Startup', width: '18%', color: 'var(--surface-container-highest)' },
+              ].map(({ label, width, color }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', width: 72, flexShrink: 0 }}>{label}</div>
+                  <div style={{ flex: 1, height: 28, borderRadius: 'var(--radius-md)', background: 'var(--surface-container)', overflow: 'hidden' }}>
+                    <div style={{ width, height: '100%', background: color, borderRadius: 'var(--radius-md)', transition: 'width 0.8s ease' }} />
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface)', fontWeight: 600, width: 36 }}>{width}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Subscriptions */}
+          <div className="card">
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>New Subscriptions This Month</h2>
+            {recentSubs.length === 0 ? (
+              <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.875rem' }}>No subscriptions yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {recentSubs.map((s: any) => (
+                  <div key={s.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 0', borderBottom: '1px solid var(--surface-container)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        background: 'var(--secondary-container)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, fontWeight: 700, color: 'var(--on-secondary-container)', flexShrink: 0,
+                      }}>
+                        {(s.subscription_number || s.id).toString()[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface)' }}>
+                          {s.subscription_number || `SUB-${s.id}`}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>
+                          {s.start_date}
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`badge badge-${s.status}`}>{s.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Alerts Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {[
+            {
+              icon: 'event',
+              title: 'Upcoming Audit',
+              body: 'Prepare tax compliance report for EMEA region',
+              color: 'var(--primary-fixed)',
+              iconColor: 'var(--primary-container)',
+            },
+            {
+              icon: 'warning_amber',
+              title: 'Churn Risk Alert',
+              body: '3 subscriptions show decreased activity (>-25%) in the last 14 days.',
+              color: 'var(--warning-container)',
+              iconColor: 'var(--warning)',
+            },
+            {
+              icon: 'speed',
+              title: 'System Health',
+              body: 'Gateway Latency: 142ms · Transaction Success Rate: 99.8%',
+              color: 'var(--tertiary-container)',
+              iconColor: 'var(--on-tertiary-container)',
+            },
+          ].map(({ icon, title, body, color, iconColor }) => (
+            <div key={title} style={{
+              background: 'var(--surface-container-lowest)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '18px 20px',
+              boxShadow: 'var(--shadow-sm)',
+              borderLeft: `3px solid ${iconColor}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span className="material-icons" style={{ fontSize: 20, color: iconColor, marginTop: 2 }}>{icon}</span>
+                <div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 4 }}>{title}</div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)', lineHeight: 1.5 }}>{body}</div>
+                </div>
+              </div>
             </div>
           ))}
-          {subs.length === 0 && <p>No subscriptions found.</p>}
-        </section>
-      </main>
-      
-      <footer style={{ marginTop: '40px', borderTop: '1px solid #ccc', paddingTop: '10px' }}>
-        <p>This minimal dashboard demonstrates that the NextJS frontend can successfully interface with the Django backend APIs.</p>
-        <p>Check the Swagger API Docs at <a href="http://localhost:8000/api/docs/" target="_blank">http://localhost:8000/api/docs/</a> for full endpoint tests (Invoices, Discounts, Quotations, Razorpay).</p>
-      </footer>
-    </div>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }
 
