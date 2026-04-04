@@ -1,0 +1,200 @@
+backend-1  | 
+backend-1  | 
+backend-1  | The above exception was the direct cause of the following exception:
+backend-1  | 
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+backend-1  |     response = get_response(request)
+backend-1  |                ^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+backend-1  |     response = wrapped_callback(request, *callback_args, **callback_kwargs)
+backend-1  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+backend-1  |     return view_func(request, *args, **kwargs)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+backend-1  |     return self.dispatch(request, *args, **kwargs)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+backend-1  |     response = self.handle_exception(exc)
+backend-1  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+backend-1  |     self.raise_uncaught_exception(exc)
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+backend-1  |     raise exc
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+backend-1  |     response = handler(request, *args, **kwargs)
+backend-1  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework_simplejwt/views.py", line 44, in post
+backend-1  |     serializer.is_valid(raise_exception=True)
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 223, in is_valid
+backend-1  |     self._validated_data = self.run_validation(self.initial_data)
+backend-1  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 445, in run_validation
+backend-1  |     value = self.validate(value)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework_simplejwt/serializers.py", line 73, in validate
+backend-1  |     data = super().validate(attrs)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework_simplejwt/serializers.py", line 54, in validate
+backend-1  |     self.user = authenticate(**authenticate_kwargs)
+backend-1  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+backend-1  |     return func(*func_args, **func_kwargs)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/contrib/auth/__init__.py", line 79, in authenticate
+backend-1  |     user = backend.authenticate(request, **credentials)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/contrib/auth/backends.py", line 42, in authenticate
+backend-1  |     user = UserModel._default_manager.get_by_natural_key(username)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/contrib/auth/base_user.py", line 56, in get_by_natural_key
+backend-1  |     return self.get(**{self.model.USERNAME_FIELD: username})
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
+backend-1  |     return getattr(self.get_queryset(), name)(*args, **kwargs)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 645, in get
+backend-1  |     num = len(clone)
+backend-1  |           ^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 382, in __len__
+backend-1  |     self._fetch_all()
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 1928, in _fetch_all
+backend-1  |     self._result_cache = list(self._iterable_class(self))
+backend-1  |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 91, in __iter__
+backend-1  |     results = compiler.execute_sql(
+backend-1  |               ^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1562, in execute_sql
+backend-1  |     cursor.execute(sql, params)
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 122, in execute
+backend-1  |     return super().execute(sql, params)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
+backend-1  |     return self._execute_with_wrappers(
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+backend-1  |     return executor(sql, params, many, context)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 100, in _execute
+backend-1  |     with self.db.wrap_database_errors:
+backend-1  |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/utils.py", line 91, in __exit__
+backend-1  |     raise dj_exc_value.with_traceback(traceback) from exc_value
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+backend-1  |     return self.cursor.execute(sql, params)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  | django.db.utils.ProgrammingError: relation "users_user" does not exist
+backend-1  | LINE 1: ...", "users_user"."email", "users_user"."role" FROM "users_use...
+backend-1  |                                                              ^
+backend-1  | 
+backend-1  | [04/Apr/2026 10:11:03] "POST /api/auth/login/ HTTP/1.1" 500 189858
+backend-1  | Internal Server Error: /api/auth/register/
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+backend-1  |     return self.cursor.execute(sql, params)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  | psycopg2.errors.UndefinedTable: relation "users_user" does not exist
+backend-1  | LINE 1: SELECT 1 AS "a" FROM "users_user" WHERE "users_user"."email"...
+backend-1  |                              ^
+backend-1  | 
+backend-1  | 
+backend-1  | The above exception was the direct cause of the following exception:
+backend-1  | 
+backend-1  | Traceback (most recent call last):
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/exception.py", line 55, in inner
+backend-1  |     response = get_response(request)
+backend-1  |                ^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/core/handlers/base.py", line 197, in _get_response
+backend-1  |     response = wrapped_callback(request, *callback_args, **callback_kwargs)
+backend-1  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+backend-1  |     return view_func(request, *args, **kwargs)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/views/generic/base.py", line 104, in view
+backend-1  |     return self.dispatch(request, *args, **kwargs)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 509, in dispatch
+backend-1  |     response = self.handle_exception(exc)
+backend-1  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 469, in handle_exception
+backend-1  |     self.raise_uncaught_exception(exc)
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+backend-1  |     raise exc
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/views.py", line 506, in dispatch
+backend-1  |     response = handler(request, *args, **kwargs)
+backend-1  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/generics.py", line 194, in post
+backend-1  |     return self.create(request, *args, **kwargs)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/mixins.py", line 18, in create
+backend-1  |     serializer.is_valid(raise_exception=True)
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 223, in is_valid
+backend-1  |     self._validated_data = self.run_validation(self.initial_data)
+backend-1  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 442, in run_validation
+backend-1  |     value = self.to_internal_value(data)
+backend-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/serializers.py", line 499, in to_internal_value
+backend-1  |     validated_value = field.run_validation(primitive_value)
+backend-1  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/fields.py", line 759, in run_validation
+backend-1  |     return super().run_validation(data)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/fields.py", line 541, in run_validation
+backend-1  |     self.run_validators(value)
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/fields.py", line 553, in run_validators
+backend-1  |     validator(value, self)
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/validators.py", line 73, in __call__
+backend-1  |     if qs_exists(queryset):
+backend-1  |        ^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/rest_framework/validators.py", line 21, in qs_exists
+backend-1  |     return queryset.exists()
+backend-1  |            ^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 1288, in exists
+backend-1  |     return self.query.has_results(using=self.db)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/sql/query.py", line 659, in has_results
+backend-1  |     return compiler.has_results()
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1530, in has_results
+backend-1  |     return bool(self.execute_sql(SINGLE))
+backend-1  |                 ^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1562, in execute_sql
+backend-1  |     cursor.execute(sql, params)
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 122, in execute
+backend-1  |     return super().execute(sql, params)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
+backend-1  |     return self._execute_with_wrappers(
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+backend-1  |     return executor(sql, params, many, context)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 100, in _execute
+backend-1  |     with self.db.wrap_database_errors:
+backend-1  |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/utils.py", line 91, in __exit__
+backend-1  |     raise dj_exc_value.with_traceback(traceback) from exc_value
+backend-1  |   File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+backend-1  |     return self.cursor.execute(sql, params)
+backend-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend-1  | django.db.utils.ProgrammingError: relation "users_user" does not exist
+backend-1  | LINE 1: SELECT 1 AS "a" FROM "users_user" WHERE "users_user"."email"...
+backend-1  |                              ^
+backend-1  | 
+backend-1  | [04/Apr/2026 10:11:30] "POST /api/auth/register/ HTTP/1.1" 500 181608
+backend-1  | Method Not Allowed: /api/auth/register/
+backend-1  | [04/Apr/2026 10:12:09] "GET /api/auth/register/ HTTP/1.1" 405 7714
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/css/bootstrap-tweaks.css HTTP/1.1" 200 3426
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/css/prettify.css HTTP/1.1" 200 817
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/js/ajax-form.js HTTP/1.1" 200 3796
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/css/default.css HTTP/1.1" 200 1152
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/js/csrf.js HTTP/1.1" 200 1793
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/js/prettify-min.js HTTP/1.1" 200 13632
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/js/default.js HTTP/1.1" 200 1268
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/js/bootstrap.min.js HTTP/1.1" 200 39680
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/js/jquery-3.7.1.min.js HTTP/1.1" 200 87533
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/js/load-ajax-form.js HTTP/1.1" 200 59
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/css/bootstrap.min.css HTTP/1.1" 200 121457
+backend-1  | [04/Apr/2026 10:12:09] "GET /static/rest_framework/img/grid.png HTTP/1.1" 200 1458
