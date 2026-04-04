@@ -1,0 +1,11 @@
+Django==5.0.3
+djangorestframework==3.15.1
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.3.1
+psycopg2-binary==2.9.9
+razorpay==1.4.1
+python-decouple==3.8
+dj-database-url==2.1.0
+drf-spectacular==0.27.1
+drf-nested-routers==0.93.5
+setuptools==69.1.1

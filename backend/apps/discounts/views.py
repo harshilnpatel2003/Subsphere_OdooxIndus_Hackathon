@@ -1,0 +1,38 @@
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from .models import Discount
+from .serializers import DiscountSerializer
+from apps.users.permissions import IsAdminOrReadOnly
+
+class DiscountViewSet(viewsets.ModelViewSet):
+    queryset = Discount.objects.all()
+    serializer_class = DiscountSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    
+    @action(detail=False, methods=['post'])
+    def validate(self, request):
+        code = request.data.get('code')
+        cart_total = request.data.get('cart_total', 0)
+        try:
+            cart_total = float(cart_total)
+        except ValueError:
+            return Response({'error': 'Invalid cart_total'}, status=400)
+            
+        discount = Discount.objects.filter(code=code).first()
+        if not discount:
+            return Response({'error': 'Invalid code'}, status=400)
+            
+        if discount.usage_limit and discount.current_usage >= discount.usage_limit:
+            return Response({'error': 'Usage limit reached'}, status=400)
+            
+        if cart_total < float(discount.min_purchase):
+            return Response({'error': 'Below min purchase'}, status=400)
+            
+        amount_off = 0
+        if discount.discount_type == 'fixed':
+            amount_off = float(discount.value)
+        else: # percentage
+            amount_off = cart_total * float(discount.value) / 100.0
+            
+        return Response({'discount_amount': amount_off})
