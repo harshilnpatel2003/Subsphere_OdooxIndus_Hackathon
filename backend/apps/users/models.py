@@ -25,6 +25,8 @@ class Role(models.TextChoices):
 class User(AbstractUser):
     username = None
     email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     role = models.CharField(
         max_length=20,
         choices=Role.choices,

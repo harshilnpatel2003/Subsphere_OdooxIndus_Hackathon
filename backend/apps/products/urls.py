@@ -3,7 +3,7 @@ from rest_framework_nested import routers
 from .views import ProductViewSet, ProductVariantViewSet
 
 router = routers.SimpleRouter()
-router.register(r'products', ProductViewSet)
+router.register(r'products', ProductViewSet, basename='product')
 
 products_router = routers.NestedSimpleRouter(router, r'products', lookup='product')
 products_router.register(r'variants', ProductVariantViewSet, basename='product-variants')
