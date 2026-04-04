@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import Cookies from 'js-cookie';
@@ -11,6 +11,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const registered = searchParams.get('registered');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +112,25 @@ export default function LoginPage() {
             <span className="material-icons" style={{ fontSize: 16 }}>arrow_back</span>
             Return Home
           </Link>
+
+          {registered && (
+            <div style={{
+              background: 'rgba(97, 157, 127, 0.15)',
+              color: '#619d7f',
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              marginBottom: 24,
+              border: '1px solid rgba(97, 157, 127, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <span className="material-icons" style={{ fontSize: 18 }}>check_circle</span>
+              Registration successful! Please login to your new account.
+            </div>
+          )}
 
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--on-surface)', marginBottom: 6, letterSpacing: '-0.015em' }}>
             Access Ledger

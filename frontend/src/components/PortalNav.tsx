@@ -35,7 +35,7 @@ export default function PortalNav() {
       </div>
       
       <div style={{marginLeft:'auto', display: 'flex', alignItems: 'center', gap: '20px'}}>
-        <button 
+        {/* <button 
             onClick={toggleCart}
             style={{ 
                 background:'none', border:'none', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px',
@@ -53,7 +53,7 @@ export default function PortalNav() {
                 )}
             </div>
             Cart
-        </button>
+        </button> */}
 
         {loggedIn ? (
             <Link href="/dashboard" style={{

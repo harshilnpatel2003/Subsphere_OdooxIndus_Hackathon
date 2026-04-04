@@ -6,6 +6,91 @@ import api from '@/lib/api';
 import withAuth from '@/components/withAuth';
 import DashboardLayout from '@/components/DashboardLayout';
 
+// ── Edit Modal ────────────────────────────────────────────────────────────
+function SubscriptionEditModal({ sub, onClose, onSaved }: { sub: any; onClose: () => void; onSaved: () => void }) {
+  const [plans, setPlans] = useState<any[]>([]);
+  const [terms, setTerms] = useState<any[]>([]);
+  const [form, setForm] = useState({
+    plan: sub.plan || '',
+    payment_terms: sub.payment_terms || '',
+    notes: sub.notes || '',
+    lines: (sub.lines || []).map((l: any) => ({ product: l.product, product_name: l.product_name, quantity: l.quantity, unit_price: l.unit_price, tax: l.tax })),
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    Promise.all([api.get('/plans/'), api.get('/payment-terms/')]).then(([p, t]) => {
+      setPlans(Array.isArray(p.data) ? p.data : p.data.results || []);
+      setTerms(Array.isArray(t.data) ? t.data : t.data.results || []);
+    });
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      await api.patch(`/subscriptions/${sub.id}/`, form);
+      onSaved(); onClose();
+    } catch (err: any) {
+      setError(JSON.stringify(err.response?.data || 'Error saving'));
+    }
+    setLoading(false);
+  };
+
+  const updateLineQty = (index: number, qty: number) => {
+    const newLines = [...form.lines];
+    newLines[index].quantity = qty;
+    setForm({ ...form, lines: newLines });
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: 32, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 20 }}>Edit Details</h2>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="form-group">
+            <label className="form-label">Billing Plan</label>
+            <select className="form-input" value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value })}>
+              {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Payment Terms</label>
+            <select className="form-input" value={form.payment_terms} onChange={e => setForm({ ...form, payment_terms: e.target.value })}>
+              <option value="">— None —</option>
+              {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Notes / Instructions</label>
+            <textarea className="form-input" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+          </div>
+
+          <div>
+            <label className="form-label">Quantities</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {form.lines.map((l: any, i: number) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: 'var(--surface-container-low)', borderRadius: 8 }}>
+                  <span style={{ fontSize: '0.85rem' }}>{l.product_name}</span>
+                  <input type="number" className="form-input" style={{ width: 80, padding: '4px 8px' }} min={1} value={l.quantity} onChange={e => updateLineQty(i, Number(e.target.value))} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {error && <div style={{ color: 'var(--error)', background: 'var(--error-container)', padding: 12, borderRadius: 8, fontSize: '0.85rem' }}>{error}</div>}
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Update Subscription'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function SubscriptionDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -13,6 +98,7 @@ function SubscriptionDetailPage() {
   const [sub, setSub] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -77,10 +163,17 @@ function SubscriptionDetailPage() {
       actions={
         <div style={{ display: 'flex', gap: 8 }}>
           {/* Draft/Quotation Phase Actions */}
-          {sub.status === 'quotation' && (
-            <button className="btn btn-primary" disabled={processing} onClick={() => executeAction('send_quotation')}>
-              <span className="material-icons" style={{ fontSize: 16 }}>send</span> Send Quotation
-            </button>
+          {(sub.status === 'draft' || sub.status === 'quotation') && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary" disabled={processing} onClick={() => setShowEdit(true)}>
+                <span className="material-icons" style={{ fontSize: 16 }}>edit</span> Edit
+              </button>
+              {sub.status === 'quotation' && (
+                <button className="btn btn-primary" disabled={processing} onClick={() => executeAction('send_quotation')}>
+                  <span className="material-icons" style={{ fontSize: 16 }}>send</span> Send Quotation
+                </button>
+              )}
+            </div>
           )}
 
           {(sub.status === 'draft' || sub.status === 'quotation' || sub.status === 'quotation_sent') && (
@@ -142,6 +235,28 @@ function SubscriptionDetailPage() {
             </div>
           </div>
 
+          {/* Detailed Info */}
+          <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--on-surface-variant)', fontWeight: 700, marginBottom: 8 }}>Customer</div>
+              <div style={{ fontSize: '1rem', fontWeight: 600 }}>{sub.customer_name || `ID: ${sub.customer}`}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--on-surface-variant)', fontWeight: 700, marginBottom: 8 }}>Linked Plan</div>
+              <div style={{ color: 'var(--primary)', fontWeight: 700 }}>{sub.plan_name || 'Standard'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--on-surface-variant)', fontWeight: 700, marginBottom: 8 }}>Payment Terms</div>
+              <div style={{ fontWeight: 600 }}>{sub.payment_terms_name || '—'}</div>
+            </div>
+            {sub.notes && (
+              <div style={{ gridColumn: 'span 2' }}>
+                <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--on-surface-variant)', fontWeight: 700, marginBottom: 8 }}>Internal Notes</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--on-surface)', background: 'var(--surface-container-low)', padding: 12, borderRadius: 8 }}>{sub.notes}</div>
+              </div>
+            )}
+          </div>
+
           {/* Items */}
           <div className="card">
             <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Order Items</h2>
@@ -198,6 +313,10 @@ function SubscriptionDetailPage() {
           </div>
         </div>
       </div>
+
+      {showEdit && (
+        <SubscriptionEditModal sub={sub} onClose={() => setShowEdit(false)} onSaved={fetchData} />
+      )}
     </DashboardLayout>
   );
 }

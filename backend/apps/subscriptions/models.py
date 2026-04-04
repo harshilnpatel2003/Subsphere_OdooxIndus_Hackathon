@@ -61,6 +61,7 @@ class QuotationTemplate(models.Model):
     description = models.TextField(blank=True, null=True)
     validity_days = models.PositiveIntegerField(default=30)
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True, blank=True)
+    payment_terms = models.ForeignKey(PaymentTerm, on_delete=models.SET_NULL, null=True, blank=True)
 
 class QuotationTemplateLine(models.Model):
     template = models.ForeignKey(QuotationTemplate, on_delete=models.CASCADE, related_name='lines')

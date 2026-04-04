@@ -98,7 +98,7 @@ function SubscriptionsPage() {
               <tr>
                 <th>Subscription</th>
                 <th>Status</th>
-                <th>Start Date</th>
+                <th>Customer</th>
                 <th>Plan</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -114,7 +114,7 @@ function SubscriptionsPage() {
                   <td>
                     <span className={`badge ${statusClass(s.status)}`}>{s.status.toUpperCase()}</span>
                   </td>
-                  <td style={{ color: 'var(--on-surface-variant)' }}>{s.start_date || '—'}</td>
+                  <td style={{ color: 'var(--on-surface)' }}>{s.customer_name || '—'}</td>
                   <td style={{ color: 'var(--on-surface-variant)' }}>{s.plan_name || '—'}</td>
                   <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

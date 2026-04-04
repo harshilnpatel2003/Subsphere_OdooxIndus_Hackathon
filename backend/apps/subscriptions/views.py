@@ -221,6 +221,7 @@ class QuotationTemplateViewSet(viewsets.ModelViewSet):
         sub = Subscription.objects.create(
             customer_id=customer_id,
             plan=template.plan,
+            payment_terms=template.payment_terms,
             status=SubscriptionStatus.QUOTATION,
             notes=template.description
         )
@@ -236,3 +237,4 @@ class QuotationTemplateViewSet(viewsets.ModelViewSet):
 class PaymentTermViewSet(viewsets.ModelViewSet):
     queryset = PaymentTerm.objects.all()
     serializer_class = PaymentTermSerializer
+    permission_classes = [IsAuthenticated]
