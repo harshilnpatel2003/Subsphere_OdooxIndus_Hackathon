@@ -29,7 +29,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Subscription
-        fields = ('id', 'subscription_number', 'customer', 'plan', 'start_date', 'expiration_date', 'payment_terms', 'status', 'lines')
+        fields = ('id', 'subscription_number', 'customer', 'plan', 'start_date', 'expiration_date', 'payment_terms', 'status', 'notes', 'lines')
         read_only_fields = ('subscription_number',)
 
     def create(self, validated_data):
@@ -39,7 +39,18 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             SubscriptionLine.objects.create(subscription=subscription, **line_data)
         return subscription
 
+class QuotationTemplateLineSerializer(serializers.ModelSerializer):
+    product_name = serializers.ReadOnlyField(source='product.name')
+
+    class Meta:
+        model = QuotationTemplateLine
+        fields = ('id', 'product', 'product_name', 'quantity')
+
 class QuotationTemplateSerializer(serializers.ModelSerializer):
+    lines = QuotationTemplateLineSerializer(many=True, read_only=True)
+    plan_name = serializers.ReadOnlyField(source='plan.name', default=None)
+    plan_billing_period = serializers.ReadOnlyField(source='plan.billing_period', default=None)
+
     class Meta:
         model = QuotationTemplate
-        fields = '__all__'
+        fields = ('id', 'name', 'description', 'validity_days', 'plan', 'plan_name', 'plan_billing_period', 'lines')

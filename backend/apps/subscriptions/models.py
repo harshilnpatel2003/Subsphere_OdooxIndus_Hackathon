@@ -31,6 +31,7 @@ class Subscription(models.Model):
     expiration_date = models.DateField(null=True, blank=True)
     payment_terms = models.ForeignKey(PaymentTerm, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, choices=SubscriptionStatus.choices, default=SubscriptionStatus.DRAFT)
+    notes = models.TextField(blank=True, null=True)
     
     def save(self, *args, **kwargs):
         if not self.subscription_number:
@@ -57,6 +58,7 @@ class SubscriptionLine(models.Model):
 
 class QuotationTemplate(models.Model):
     name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
     validity_days = models.PositiveIntegerField(default=30)
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True, blank=True)
 

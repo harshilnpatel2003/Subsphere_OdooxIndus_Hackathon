@@ -212,6 +212,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 class QuotationTemplateViewSet(viewsets.ModelViewSet):
     queryset = QuotationTemplate.objects.all()
     serializer_class = QuotationTemplateSerializer
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=['post'])
     def apply(self, request, pk=None):
@@ -221,7 +222,7 @@ class QuotationTemplateViewSet(viewsets.ModelViewSet):
             customer_id=customer_id,
             plan=template.plan,
             status=SubscriptionStatus.QUOTATION,
-            payment_terms=f"Valid for {template.validity_days} days"
+            notes=template.description
         )
         for line in template.lines.all():
             SubscriptionLine.objects.create(
@@ -230,7 +231,7 @@ class QuotationTemplateViewSet(viewsets.ModelViewSet):
                 quantity=line.quantity,
                 unit_price=line.product.sales_price,
             )
-        return Response({'subscription_id': sub.id})
+        return Response({'subscription_id': sub.id, 'subscription_number': sub.subscription_number})
 
 class PaymentTermViewSet(viewsets.ModelViewSet):
     queryset = PaymentTerm.objects.all()

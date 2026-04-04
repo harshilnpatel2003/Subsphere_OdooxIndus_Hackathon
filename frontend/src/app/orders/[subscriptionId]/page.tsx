@@ -125,6 +125,12 @@ function SubscriptionDetailPage() {
                 <p><strong>Start Date:</strong> {formatDate(sub.start_date)}</p>
                 <p><strong>Expiration Date:</strong> {formatDate(sub.expiration_date)}</p>
                 <p><strong>Payment Terms:</strong> {sub.payment_terms || 'None'}</p>
+                {sub.notes && (
+                  <div style={{ marginTop: '16px', padding: '12px 16px', background: 'var(--secondary-container)', color: 'var(--on-secondary-container)', borderRadius: '8px', borderLeft: '4px solid var(--secondary)', fontSize: '0.95rem', fontWeight: 500 }}>
+                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8, marginBottom: 4, fontWeight: 700 }}>Note from SubSphere</div>
+                    "{sub.notes}"
+                  </div>
+                )}
              </div>
 
              <div style={{marginTop:'30px'}}>
