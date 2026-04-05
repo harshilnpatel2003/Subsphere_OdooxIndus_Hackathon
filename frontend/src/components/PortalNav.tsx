@@ -1,4 +1,5 @@
 'use client';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -9,18 +10,29 @@ export default function PortalNav() {
   const pathname = usePathname();
   const [count, setCount] = useState(0);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     setCount(getCartCount());
-    setLoggedIn(!!Cookies.get('access'));
+    // Initial auth check
+    const token = Cookies.get('access');
+    setLoggedIn(!!token);
 
     const interval = setInterval(() => setCount(getCartCount()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const toggleCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    window.dispatchEvent(new CustomEvent('toggle-cart'));
+  // CRITICAL: Close the dropdown menu whenever the route changes
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  const handleSignOut = () => {
+    // Explicitly clear cookies with path root
+    Cookies.remove('access', { path: '/' });
+    Cookies.remove('refresh', { path: '/' });
+    // Full reload to clear internal state and redirect
+    window.location.href = '/login';
   };
 
   const navLinkStyle = (active: boolean) => ({
@@ -34,13 +46,12 @@ export default function PortalNav() {
     gap: '4px'
   });
 
-  // Reusable style for the Login button to keep the JSX clean
   const loginButtonStyle = {
     color: 'var(--primary)',
     textDecoration: 'none',
     fontWeight: 700,
     fontSize: '0.9rem',
-    padding: '8px 16px',
+    padding: '8px 24px',
     border: '2px solid var(--primary)',
     borderRadius: 'var(--radius-md)'
   };
@@ -83,27 +94,82 @@ export default function PortalNav() {
         </Link>
       </div>
 
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '24px' }}>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
 
         {loggedIn ? (
-          <>
-            {/* Login Button added beside Admin Portal */}
-            <Link href="/login" style={loginButtonStyle}>
-              Login
-            </Link>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '12px' }}>
 
-            <Link href="/dashboard" className="btn btn-secondary" style={{
-              padding: '10px 20px',
-              borderRadius: 'var(--radius-lg)',
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span className="material-icons" style={{ fontSize: 18 }}>admin_panel_settings</span>
-              Admin Portal
-            </Link>
-          </>
+            {/* Profile Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                style={{
+                  background: 'var(--surface-container-low)',
+                  border: '1px solid var(--outline-variant)',
+                  borderRadius: '100px',
+                  padding: '6px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  color: 'var(--on-surface)'
+                }}
+              >
+                <span className="material-icons" style={{ color: 'var(--primary)', fontSize: 24 }}>account_circle</span>
+                <span className="material-icons" style={{ fontSize: 18 }}>{menuOpen ? 'expand_less' : 'expand_more'}</span>
+              </button>
+
+              {menuOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 12px)',
+                  right: 0,
+                  width: '200px',
+                  background: '#fff',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                  border: '1px solid var(--surface-container)',
+                  padding: '8px',
+                  zIndex: 1000
+                }}>
+                  <Link href="/profile" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px',
+                    textDecoration: 'none',
+                    color: 'var(--on-surface)',
+                    fontSize: '0.9rem',
+                    borderRadius: 'var(--radius-sm)'
+                  }}>
+                    <span className="material-icons" style={{ fontSize: 18 }}>person</span> My Profile
+                  </Link>
+
+                  <div style={{ height: '1px', background: 'var(--surface-container)', margin: '4px 0' }} />
+
+                  <button
+                    onClick={handleSignOut}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px',
+                      width: '100%',
+                      background: 'none',
+                      border: 'none',
+                      color: '#d32f2f',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span className="material-icons" style={{ fontSize: 18 }}>logout</span> Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <Link href="/login" style={loginButtonStyle}>
             Login

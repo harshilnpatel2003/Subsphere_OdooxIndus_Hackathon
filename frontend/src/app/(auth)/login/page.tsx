@@ -24,23 +24,25 @@ export default function LoginPage() {
       // 1. Validate credentials with your API
       const res = await api.post('/auth/login/', { email, password });
 
-      // 2. Set the session cookies
-      Cookies.set('access', res.data.access);
-      Cookies.set('refresh', res.data.refresh);
+      // 2. Set the session cookies with explicit PATH and SAME-SITE
+      // Setting path: '/' ensures the cookie is accessible globally, not just on /login
+      Cookies.set('access', res.data.access, { path: '/', sameSite: 'lax' });
+      Cookies.set('refresh', res.data.refresh, { path: '/', sameSite: 'lax' });
 
-      // 3. Conditional Redirection Logic
+      // 3. Force a refresh BEFORE redirection
+      // This ensures Server Components (like your Navbar) recognize the new cookies
+      router.refresh();
+
+      // 4. Conditional Redirection Logic
       if (email === 'admin@example.com' && password === 'Admin123!') {
-        // Redirect to Admin Portal
         router.push('/dashboard');
       } else {
-        // Redirect to Home Page for everyone else
+        // Redirection to Home Page
         router.push('/');
       }
 
-      // 4. Force a refresh so the Navbar (PortalNav) updates immediately
-      router.refresh();
-
     } catch (err: any) {
+      console.error('Login Error:', err);
       setError(err.response?.data?.detail || 'Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
