@@ -1,0 +1,238 @@
+﻿  Γû▓ Next.js 14.2.35
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/28) ...
+   Generating static pages (7/28) 
+node.exe :  Γ¿» 
+useSearchParams() 
+should be wrapped in 
+a suspense boundary 
+at page 
+"/order/success". 
+Read more: https://nex
+tjs.org/docs/messages/
+missing-suspense-with-
+csr-bailout
+At line:1 char:1
++ & "C:\Program Files\
+nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : 
+NotSpecified: (     
+Γ¿» useSearchP...ith- 
+   
+csr-bailout:String) [ 
+   ], RemoteException
+    + 
+FullyQualifiedError   
+ Id : 
+NativeCommandErr    or
+ 
+    at o (H:\Subsphere
+\Subsphere_OdooxIndus_
+Hackathon\frontend\.ne
+xt\server\chunks\326.j
+s:1:10500)
+    at d (H:\Subsphere
+\Subsphere_OdooxIndus_
+Hackathon\frontend\.ne
+xt\server\chunks\326.j
+s:1:21392)
+    at c (H:\Subsphere
+\Subsphere_OdooxIndus_
+Hackathon\frontend\.ne
+xt\server\app\order\su
+ccess\page.js:1:3498)
+    at nj (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:46252)
+    at nM (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:47572)
+    at nL (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:64547)
+    at nI (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:47011)
+    at nM (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:47718)
+    at nM (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:61547)
+    at nL (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:64547)
+
+Error occurred 
+prerendering page 
+"/order/success". 
+Read more: https://nex
+tjs.org/docs/messages/
+prerender-error
+
+   Generating static pages (14/28) 
+   Generating static pages (21/28) 
+ Γ¿» 
+useSearchParams() 
+should be wrapped in 
+a suspense boundary 
+at page "/login". 
+Read more: https://nex
+tjs.org/docs/messages/
+missing-suspense-with-
+csr-bailout
+    at o (H:\Subsphere
+\Subsphere_OdooxIndus_
+Hackathon\frontend\.ne
+xt\server\chunks\326.j
+s:1:10500)
+    at d (H:\Subsphere
+\Subsphere_OdooxIndus_
+Hackathon\frontend\.ne
+xt\server\chunks\326.j
+s:1:21392)
+    at c (H:\Subsphere
+\Subsphere_OdooxIndus_
+Hackathon\frontend\.ne
+xt\server\app\(auth)\l
+ogin\page.js:1:3707)
+    at nj (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:46252)
+    at nM (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:47572)
+    at nL (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:64547)
+    at nI (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:47011)
+    at nM (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:47718)
+    at nM (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:61547)
+    at nL (H:\Subspher
+e\Subsphere_OdooxIndus
+_Hackathon\frontend\no
+de_modules\next\dist\c
+ompiled\next-server\ap
+p-page.runtime.prod.js
+:12:64547)
+
+Error occurred 
+prerendering page 
+"/login". Read more: h
+ttps://nextjs.org/docs
+/messages/prerender-er
+ror
+
+The width(-1) and 
+height(-1) of chart 
+should be greater 
+than 0,
+       please check 
+the style of 
+container, or the 
+props width(100%) and 
+height(100%),
+       or add a 
+minWidth(0) or 
+minHeight(undefined) 
+or use 
+aspect(undefined) to 
+control the
+       height and 
+width.
+The width(-1) and 
+height(-1) of chart 
+should be greater 
+than 0,
+       please check 
+the style of 
+container, or the 
+props width(100%) and 
+height(100%),
+       or add a 
+minWidth(0) or 
+minHeight(undefined) 
+or use 
+aspect(undefined) to 
+control the
+       height and 
+width.
+ Γ£ô Generating static pages (28/28)
+
+> Export encountered 
+errors on following 
+paths:
+	/(auth)/login/page: 
+/login
+	/order/success/page: 
+/order/success
