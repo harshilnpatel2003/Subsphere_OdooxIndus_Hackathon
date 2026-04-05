@@ -19,11 +19,27 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
+      // 1. Validate credentials with your API
       const res = await api.post('/auth/login/', { email, password });
+
+      // 2. Set the session cookies
       Cookies.set('access', res.data.access);
       Cookies.set('refresh', res.data.refresh);
-      router.push('/dashboard');
+
+      // 3. Conditional Redirection Logic
+      if (email === 'admin@example.com' && password === 'Admin123!') {
+        // Redirect to Admin Portal
+        router.push('/dashboard');
+      } else {
+        // Redirect to Home Page for everyone else
+        router.push('/');
+      }
+
+      // 4. Force a refresh so the Navbar (PortalNav) updates immediately
+      router.refresh();
+
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Invalid credentials. Please try again.');
     } finally {
@@ -58,13 +74,13 @@ export default function LoginPage() {
           pointerEvents: 'none',
         }} />
 
-        {/* Brand Link (Placeholder or Generic) */}
+        {/* Brand Link */}
         <Link href="/" style={{
-            fontSize: '1.5rem', fontWeight: 900, color: '#fff', 
-            letterSpacing: '-0.5px', textDecoration: 'none',
-            display: 'flex', alignItems: 'center', gap: '10px'
+          fontSize: '1.5rem', fontWeight: 900, color: '#fff',
+          letterSpacing: '-0.5px', textDecoration: 'none',
+          display: 'flex', alignItems: 'center', gap: '10px'
         }}>
-            SubSphere
+          SubSphere
         </Link>
 
         {/* Content */}
@@ -78,36 +94,36 @@ export default function LoginPage() {
 
           <div style={{ display: 'flex', gap: '48px', marginTop: '48px' }}>
             {[
-                { label: 'Uptime', value: '99.99%' },
-                { label: 'Real-time', value: 'Ledger' }
+              { label: 'Uptime', value: '99.99%' },
+              { label: 'Real-time', value: 'Ledger' }
             ].map((stat, i) => (
-                <div key={i}>
-                    <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff' }}>{stat.value}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>{stat.label}</div>
-                </div>
+              <div key={i}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff' }}>{stat.value}</div>
+                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>{stat.label}</div>
+              </div>
             ))}
           </div>
         </div>
 
         {/* Footer */}
         <div style={{ display: 'flex', gap: '24px' }}>
-            {['Terms', 'Privacy', 'Compliance'].map(link => (
-                <Link key={link} href="#" style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textDecoration: 'none' }}>{link}</Link>
-            ))}
+          {['Terms', 'Privacy', 'Compliance'].map(link => (
+            <Link key={link} href="#" style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textDecoration: 'none' }}>{link}</Link>
+          ))}
         </div>
       </div>
 
       {/* Right Panel — Form */}
       <div style={{
         flex: 1,
-        display: 'flex', 
-        alignItems: 'center', 
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         padding: '40px',
         background: 'var(--surface-container-lowest)',
       }}>
         <div style={{ width: '100%', maxWidth: '400px' }}>
-          <Link href="/" className="label-md" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--on-surface-variant)', marginBottom: '40px', textDecoration: 'none' }}>
+          <Link href="/shop" className="label-md" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--on-surface-variant)', marginBottom: '40px', textDecoration: 'none' }}>
             <span className="material-icons" style={{ fontSize: '16px' }}>arrow_back</span>
             Return to Marketplace
           </Link>
@@ -136,53 +152,53 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div className="form-group">
-                <label className="form-label">Enterprise Identity (Email)</label>
-                <input 
-                    type="email" 
-                    className="form-input" 
-                    placeholder="architect@company.io"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
+              <label className="form-label">Enterprise Identity (Email)</label>
+              <input
+                type="email"
+                className="form-input"
+                placeholder="architect@company.io"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
 
             <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label className="form-label">Secret Key (Password)</label>
-                    <Link href="#" style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>Recovery Options</Link>
-                </div>
-                <input 
-                    type="password" 
-                    className="form-input" 
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label className="form-label">Secret Key (Password)</label>
+                <Link href="#" style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>Recovery Options</Link>
+              </div>
+              <input
+                type="password"
+                className="form-input"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
 
             {error && (
-                <div className="badge-error" style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="material-icons" style={{ fontSize: '18px' }}>error_outline</span>
-                    {error}
-                </div>
+              <div className="badge-error" style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className="material-icons" style={{ fontSize: '18px' }}>error_outline</span>
+                {error}
+              </div>
             )}
 
-            <button 
-                type="submit" 
-                className="btn btn-primary" 
-                disabled={loading}
-                style={{ width: '100%', padding: '16px', fontSize: '1rem', fontWeight: 700, marginTop: '12px', boxShadow: 'var(--shadow-md)' }}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+              style={{ width: '100%', padding: '16px', fontSize: '1rem', fontWeight: 700, marginTop: '12px', boxShadow: 'var(--shadow-md)' }}
             >
-                {loading ? 'Authenticating...' : 'Authorize Transaction'}
+              {loading ? 'Authenticating...' : 'Authorize Transaction'}
             </button>
           </form>
 
           <div style={{ marginTop: '32px', textAlign: 'center' }}>
             <p className="body-md text-muted">
-                Unauthorized user? {' '}
-                <Link href="/register" style={{ color: 'var(--primary)', fontWeight: 700 }}>Request Provisioning</Link>
+              Unauthorized user? {' '}
+              <Link href="/register" style={{ color: 'var(--primary)', fontWeight: 700 }}>Request Provisioning</Link>
             </p>
           </div>
         </div>
