@@ -10,7 +10,13 @@ export interface CartItem {
   variantId: string | null;
   productPhoto: string | null;
 }
-export interface Cart { items: CartItem[]; discountCode: string | null; discountAmount: number; }
+export interface Cart { 
+  items: CartItem[]; 
+  discountCode: string | null; 
+  discountAmount: number; 
+  discountType?: 'fixed' | 'percentage';
+  discountValue?: number;
+}
 const CART_KEY = 'subsphere_cart';
 export function getCart(): Cart {
   if (typeof window === 'undefined') return { items: [], discountCode: null, discountAmount: 0 };
@@ -37,7 +43,12 @@ export function updateQuantity(productId: string, planId: string | null, qty: nu
 }
 export function clearCart() { localStorage.removeItem(CART_KEY); }
 export function getCartTotal(cart: Cart): number { return cart.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0); }
-export function applyDiscount(code: string, amount: number) {
-  const cart = getCart(); cart.discountCode = code; cart.discountAmount = amount; saveCart(cart);
+export function applyDiscount(code: string, amount: number, type?: 'fixed' | 'percentage', value?: number) {
+  const cart = getCart(); 
+  cart.discountCode = code; 
+  cart.discountAmount = amount; 
+  cart.discountType = type;
+  cart.discountValue = value;
+  saveCart(cart);
 }
 export function getCartCount(): number { return getCart().items.reduce((s, i) => s + i.quantity, 0); }

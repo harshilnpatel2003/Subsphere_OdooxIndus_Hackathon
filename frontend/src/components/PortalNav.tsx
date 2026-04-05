@@ -132,7 +132,7 @@ export default function PortalNav() {
                   padding: '8px',
                   zIndex: 1000
                 }}>
-                  <Link href="/profile" style={{
+                  <Link href="/account" style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',

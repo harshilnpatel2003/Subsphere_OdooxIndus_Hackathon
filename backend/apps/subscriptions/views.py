@@ -154,23 +154,44 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         invoice = self._generate_invoice(sub)
 
         # Apply promo code discount if provided
-        if discount_code and float(discount_amount) > 0:
+        if discount_code:
             try:
                 from apps.discounts.models import Discount, DiscountUsage
-                discount_obj = Discount.objects.filter(code=discount_code).first()
+                import datetime
+                discount_obj = Discount.objects.filter(code__iexact=discount_code).first()
                 if discount_obj:
-                    # Reduce invoice total by promo discount amount
-                    promo_amount = min(float(discount_amount), float(invoice.total))
-                    invoice.discount_amount = float(invoice.discount_amount or 0) + promo_amount
-                    invoice.total = max(0, float(invoice.total) - promo_amount)
-                    invoice.save()
-                    # Track per-user usage
-                    DiscountUsage.objects.create(discount=discount_obj, user=request.user)
-                    # Increment global usage counter
-                    discount_obj.current_usage += 1
-                    discount_obj.save(update_fields=['current_usage'])
-            except Exception:
-                pass  # Don't fail checkout if discount tracking fails
+                    today = datetime.date.today()
+                    # Re-validate
+                    is_active = True
+                    if discount_obj.start_date and discount_obj.start_date > today: is_active = False
+                    if discount_obj.end_date and discount_obj.end_date < today: is_active = False
+                    if discount_obj.usage_limit and discount_obj.current_usage >= discount_obj.usage_limit: is_active = False
+                    
+                    if is_active and discount_obj.max_uses_per_user:
+                        user_usage = DiscountUsage.objects.filter(discount=discount_obj, user=request.user).count()
+                        if user_usage >= discount_obj.max_uses_per_user:
+                            is_active = False
+                            
+                    if is_active and float(invoice.subtotal) >= float(discount_obj.min_purchase):
+                        promo_amount = 0
+                        if discount_obj.discount_type == 'fixed':
+                            promo_amount = float(discount_obj.value)
+                        else:
+                            promo_amount = float(invoice.subtotal) * float(discount_obj.value) / 100.0
+                            
+                        # Apply to invoice
+                        actual_promo_amount = min(float(promo_amount), float(invoice.total))
+                        invoice.discount_amount = float(invoice.discount_amount or 0) + actual_promo_amount
+                        invoice.total = max(0, float(invoice.total) - actual_promo_amount)
+                        invoice.save()
+                        
+                        # Track usage
+                        DiscountUsage.objects.create(discount=discount_obj, user=request.user)
+                        discount_obj.current_usage += 1
+                        discount_obj.save(update_fields=['current_usage'])
+            except Exception as e:
+                print(f"Error applying promo discount: {e}")
+                pass 
 
         return Response({
             'subscription_id': sub.id,

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { getCart, removeFromCart, updateQuantity, clearCart, getCartTotal, Cart as CartObj } from '@/lib/cart';
+import { getCart, removeFromCart, updateQuantity, clearCart, getCartTotal, applyDiscount, Cart as CartObj } from '@/lib/cart';
 import { formatINR } from '@/lib/formatters';
 import { openRazorpayCheckout } from '@/lib/razorpay';
 
@@ -21,7 +21,16 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const [error, setError] = useState('');
 
   const refreshCart = () => {
-    setCart(getCart());
+    const current = getCart();
+    if (current.discountCode && current.discountType) {
+      const subtotal = getCartTotal(current);
+      if (current.discountType === 'percentage') {
+        current.discountAmount = subtotal * (current.discountValue || 0) / 100.0;
+      } else {
+        current.discountAmount = current.discountValue || 0;
+      }
+    }
+    setCart(current);
   };
 
   useEffect(() => {
@@ -39,12 +48,16 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     setError('');
     try {
       const res = await api.post('/discounts/validate/', {
-        code: discountCode,
-        cart_total: getCartTotal(cart)
+        code: discountCode.trim(),
+        cart_total: getCartTotal(cart),
       });
-      setStatus(`✓ Discount applied: -${formatINR(res.data.discount_amount)}`);
-      const updatedCart = { ...cart, discountCode: discountCode, discountAmount: res.data.discount_amount };
-      setCart(updatedCart);
+      applyDiscount(
+        discountCode.trim(),
+        res.data.discount_amount,
+        res.data.discount_type,
+        res.data.discount_value
+      );
+      refreshCart();
       setLoading(false);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Invalid or expired code');
@@ -61,7 +74,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       // Step 1: Create subscription and invoice from cart
       const subRes = await api.post('/subscriptions/from-cart/', {
         items: cart.items,
-        plan_id: cart.items.find(i => i.planId)?.planId || null 
+        plan_id: cart.items.find(i => i.planId)?.planId || null,
+        discount_code: cart.discountCode || undefined,
+        discount_amount: cart.discountAmount || 0,
       });
       
       const { subscription_id, invoice_id } = subRes.data;

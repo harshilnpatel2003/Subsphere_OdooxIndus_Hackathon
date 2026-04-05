@@ -1,7 +1,9 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Discount
+import datetime
+from django.utils import timezone
 from .serializers import DiscountSerializer
 from apps.users.permissions import IsAdminOrReadOnly
 
@@ -10,7 +12,7 @@ class DiscountViewSet(viewsets.ModelViewSet):
     serializer_class = DiscountSerializer
     permission_classes = [IsAdminOrReadOnly]
     
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def validate(self, request):
         code = request.data.get('code')
         cart_total = request.data.get('cart_total', 0)
@@ -19,9 +21,16 @@ class DiscountViewSet(viewsets.ModelViewSet):
         except ValueError:
             return Response({'error': 'Invalid cart_total'}, status=400)
             
-        discount = Discount.objects.filter(code=code).first()
+        discount = Discount.objects.filter(code__iexact=code).first()
         if not discount:
-            return Response({'error': 'Invalid or expired code'}, status=400)
+            return Response({'error': 'Invalid code'}, status=400)
+
+        # Date validation
+        today = datetime.date.today()
+        if discount.start_date and discount.start_date > today:
+            return Response({'error': 'This promotional code is not yet active.'}, status=400)
+        if discount.end_date and discount.end_date < today:
+            return Response({'error': 'This promotional code has expired.'}, status=400)
             
         if discount.usage_limit and discount.current_usage >= discount.usage_limit:
             return Response({'error': 'Usage limit reached'}, status=400)

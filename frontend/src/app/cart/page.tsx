@@ -19,7 +19,18 @@ function CartPage() {
   const [loading, setLoading] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
 
-  const refreshCart = () => setCart(getCart());
+  const refreshCart = () => {
+    const current = getCart();
+    if (current.discountCode && current.discountType) {
+      const subtotal = getCartTotal(current);
+      if (current.discountType === 'percentage') {
+        current.discountAmount = subtotal * (current.discountValue || 0) / 100.0;
+      } else {
+        current.discountAmount = current.discountValue || 0;
+      }
+    }
+    setCart(current);
+  };
 
   useEffect(() => { refreshCart(); }, []);
 
@@ -37,7 +48,12 @@ function CartPage() {
         code: discountCode.trim(),
         cart_total: getCartTotal(cart),
       });
-      applyDiscount(discountCode.trim(), res.data.discount_amount);
+      applyDiscount(
+        discountCode.trim(),
+        res.data.discount_amount,
+        res.data.discount_type,
+        res.data.discount_value
+      );
       refreshCart();
       setPromoStatus({
         type: 'success',
