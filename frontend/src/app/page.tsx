@@ -45,7 +45,7 @@ export default function HomePage() {
                 <span style={{ color: 'var(--primary)' }}>Scale and Precision.</span>
             </h1>
             <p className="body-lg text-muted" style={{ maxWidth: '640px', margin: '0 auto 40px', lineHeight: 1.6 }}>
-                Experience functional sophistication with our architectural standard <br/>
+                Experience functional sophistication with SubSphere — the architectural standard <br/>
                 for enterprise subscription management and modern ecosystem infrastructure.
             </p>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
@@ -166,8 +166,8 @@ export default function HomePage() {
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '100px', paddingBottom: '60px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <div>
-                    <h3 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '20px' }}>Architecture Portal</h3>
-                    <p style={{ opacity: 0.5, lineHeight: 1.6 }}>The architectural standard for subscription management and financial infrastructure automation. Built for high-frequency enterprise scaling.</p>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '20px' }}>SubSphere</h3>
+                    <p style={{ opacity: 0.5, lineHeight: 1.6 }}>The SubSphere architectural standard for subscription management and financial infrastructure automation. Built for high-frequency enterprise scaling.</p>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '40px' }}>
                     {[
@@ -187,7 +187,7 @@ export default function HomePage() {
                 </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '40px' }}>
-                <p style={{ fontSize: '0.75rem', opacity: 0.3 }}>© 2026 Architectural Infrastructure. All protocols observed.</p>
+                <p style={{ fontSize: '0.75rem', opacity: 0.3 }}>© 2026 SubSphere Architectural Infrastructure. All protocols observed.</p>
                 <div style={{ display: 'flex', gap: '20px' }}>
                     {['X', 'GitHub', 'LinkedIn'].map(social => (
                         <span key={social} style={{ fontSize: '0.75rem', opacity: 0.3, cursor: 'pointer' }}>{social}</span>

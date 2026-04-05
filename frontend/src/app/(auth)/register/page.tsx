@@ -60,7 +60,7 @@ export default function RegisterPage() {
             letterSpacing: '-0.5px', textDecoration: 'none',
             display: 'flex', alignItems: 'center', gap: '10px'
         }}>
-            Architecture Portal
+            SubSphere
         </Link>
 
         {/* Content */}

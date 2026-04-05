@@ -51,6 +51,17 @@ export default function PortalNav() {
         zIndex: 900,
         boxShadow: 'var(--shadow-sm)'
     }}>
+      <Link href="/" style={{
+          color: 'var(--primary)', 
+          fontWeight: 900, 
+          fontSize: '1.5rem', 
+          textDecoration: 'none', 
+          letterSpacing: '-0.5px',
+          marginRight: '48px'
+      }}>
+        SubSphere
+      </Link>
+
       <div style={{ display: 'flex', gap: '32px' }}>
         <Link href="/shop" style={navLinkStyle(pathname === '/shop')}>
             <span className="material-icons" style={{ fontSize: 18 }}>storefront</span>

@@ -3,7 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Enterprise Architectural Ledger",
+  title: "SubSphere - Enterprise Architectural Ledger",
   description: "A precision instrument for enterprise subscription management.",
 };
 
