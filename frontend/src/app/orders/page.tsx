@@ -6,10 +6,12 @@ import PortalNav from '@/components/PortalNav';
 import { formatDate, formatSubNumber } from '@/lib/formatters';
 import withAuth from '@/components/withAuth';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type Tab = 'quotations' | 'active' | 'history';
 
 function OrdersPage() {
+  const router = useRouter();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [activeSubs, setActiveSubs] = useState<any[]>([]);
   const [historySubs, setHistorySubs] = useState<any[]>([]);
@@ -54,153 +56,178 @@ function OrdersPage() {
   };
 
   const statusBadge = (s: string) => {
-    const colors: Record<string, { bg: string; color: string }> = {
-      active: { bg: '#d4edda', color: '#155724' },
-      quotation: { bg: '#fff3cd', color: '#856404' },
-      quotation_sent: { bg: '#cce5ff', color: '#004085' },
-      closed: { bg: '#e2e3e5', color: '#383d41' },
-      cancelled: { bg: '#f8d7da', color: '#721c24' },
-      confirmed: { bg: '#d1ecf1', color: '#0c5460' },
+    const statusMap: Record<string, string> = {
+      active: 'badge-active',
+      quotation: 'badge-pending',
+      quotation_sent: 'badge-draft',
+      closed: 'badge-closed',
+      cancelled: 'badge-error',
+      confirmed: 'badge-confirmed',
     };
-    const c = colors[s] || { bg: '#eee', color: '#555' };
+    const className = statusMap[s] || 'badge';
     return (
-      <span style={{
-        padding: '3px 10px', borderRadius: 10, fontSize: '0.78em', fontWeight: 'bold',
-        textTransform: 'uppercase', letterSpacing: '0.04em',
-        background: c.bg, color: c.color,
-      }}>
+      <span className={`badge ${className}`}>
         {s.replace('_', ' ')}
       </span>
     );
   };
 
-  const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: 'quotations', label: '📋 Quotations', count: quotations.length },
-    { key: 'active', label: '✅ Active', count: activeSubs.length },
-    { key: 'history', label: '🗂 History', count: historySubs.length },
+  const tabs: { key: Tab; label: string; icon: string; count: number }[] = [
+    { key: 'quotations', label: 'Quotations', icon: 'description', count: quotations.length },
+    { key: 'active', label: 'Active', icon: 'check_circle', count: activeSubs.length },
+    { key: 'history', label: 'History', icon: 'archive', count: historySubs.length },
   ];
 
   const currentSubs = tab === 'quotations' ? quotations : tab === 'active' ? activeSubs : historySubs;
 
   if (loading) return (
-    <div>
+    <div style={{ background: 'var(--surface)', minHeight: '100vh' }}>
       <PortalNav />
-      <div style={{ padding: '40px', textAlign: 'center', color: '#888' }}>Loading your subscriptions…</div>
+      <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <div className="material-icons" style={{ fontSize: '48px', color: 'var(--primary)', opacity: 0.2 }}>architecture</div>
+            <p className="body-md text-muted">Synchronizing with ledger...</p>
+        </div>
+      </div>
     </div>
   );
 
   return (
-    <div>
+    <div style={{ background: 'var(--surface)', minHeight: '100vh', paddingBottom: '80px' }}>
       <PortalNav />
-      <div style={{ padding: '24px 32px', maxWidth: 1024, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      
+      <div style={{ padding: '40px 40px', maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
           <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>My Subscriptions</h1>
-            <p style={{ color: '#666', marginTop: 4 }}>View your active agreements and pending quotations</p>
+            <h1 className="display-sm">My Portfolio</h1>
+            <p className="body-lg text-muted" style={{ marginTop: '4px' }}>Analyze and manage your active agreements and financial quotations.</p>
           </div>
-          <Link href="/shop" style={{
-            padding: '10px 20px', background: '#0070f3', color: '#fff',
-            borderRadius: 8, textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem'
-          }}>
-            + New Order
+          <Link href="/shop" className="btn btn-primary" style={{ padding: '12px 24px', fontSize: '0.9rem', fontWeight: 600 }}>
+            <span className="material-icons" style={{ fontSize: '18px' }}>add</span>
+            New Order
           </Link>
         </div>
 
         {msg && (
-          <div style={{ padding: '12px 16px', background: '#d4edda', color: '#155724', borderRadius: 8, marginBottom: 16, fontWeight: 600 }}>
+          <div style={{ padding: '16px 20px', background: 'var(--tertiary-container)', color: 'var(--on-tertiary-container)', borderRadius: 'var(--radius-lg)', marginBottom: '32px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '12px', boxShadow: 'var(--shadow-sm)' }}>
+            <span className="material-icons">check_circle</span>
             {msg}
           </div>
         )}
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #eee', marginBottom: 24 }}>
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              style={{
-                padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer',
-                fontSize: '0.9rem', fontWeight: 600,
-                borderBottom: tab === t.key ? '2px solid #0070f3' : '2px solid transparent',
-                color: tab === t.key ? '#0070f3' : '#888',
-                marginBottom: -2,
-              }}
-            >
-              {t.label} <span style={{ opacity: 0.65, fontStyle: 'normal', fontSize: '0.8em' }}>({t.count})</span>
-            </button>
-          ))}
+        {/* Stats Summary Panel */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '40px' }}>
+            <div className="stat-card">
+                <span className="stat-card__label">Pending Quotations</span>
+                <span className="stat-card__value">{quotations.length}</span>
+                <span className="stat-card__change">Awaiting your review</span>
+            </div>
+            <div className="stat-card">
+                <span className="stat-card__label">Active Subscriptions</span>
+                <span className="stat-card__value">{activeSubs.length}</span>
+                <span className="stat-card__change" style={{ color: 'var(--on-tertiary-container)' }}>Operational</span>
+            </div>
+            <div className="stat-card">
+                <span className="stat-card__label">Closed / History</span>
+                <span className="stat-card__value">{historySubs.length}</span>
+                <span className="stat-card__change">Past agreements</span>
+            </div>
         </div>
 
-        {/* Quotation info banner */}
-        {tab === 'quotations' && quotations.length > 0 && (
-          <div style={{
-            padding: '14px 20px', background: '#fff3cd', border: '1px solid #ffecb5',
-            borderRadius: 8, marginBottom: 20, fontSize: '0.9rem', color: '#7c5e00'
-          }}>
-            <strong>📣 You have {quotations.length} pending quotation{quotations.length > 1 ? 's' : ''}.</strong>
-            {' '}Review the details below. Contact support to confirm or negotiate further.
-          </div>
-        )}
-
-        {/* Table */}
-        <div>
-          {currentSubs.length === 0 ? (
-            <div style={{ padding: '60px 20px', textAlign: 'center', color: '#aaa' }}>
-              <div style={{ fontSize: '2rem', marginBottom: 12 }}>{tab === 'quotations' ? '📋' : tab === 'active' ? '✅' : '🗂'}</div>
-              <p style={{ fontSize: '1rem' }}>No {tab === 'quotations' ? 'quotations' : tab === 'active' ? 'active subscriptions' : 'history'} found.</p>
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-              <thead>
-                <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #e9ecef' }}>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: '#555' }}>Reference</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: '#555' }}>Plan</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: '#555' }}>Date</th>
-                  {tab === 'quotations' && <th style={{ padding: '12px 16px', textAlign: 'left', color: '#555' }}>Expires</th>}
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: '#555' }}>Status</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'center', color: '#555' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentSubs.map((s, i) => (
-                  <tr key={s.id} style={{ borderBottom: '1px solid #eee', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, fontFamily: 'monospace', fontSize: '0.95rem' }}>
-                      {formatSubNumber(s)}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: '#444' }}>{s.plan_name || '—'}</td>
-                    <td style={{ padding: '14px 16px', color: '#666' }}>{formatDate(s.start_date)}</td>
-                    {tab === 'quotations' && (
-                      <td style={{ padding: '14px 16px', color: s.expiration_date ? '#c0392b' : '#888' }}>
-                        {s.expiration_date ? formatDate(s.expiration_date) : 'No expiry'}
-                      </td>
-                    )}
-                    <td style={{ padding: '14px 16px' }}>{statusBadge(s.status)}</td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <Link href={`/orders/${s.id}`} style={{
-                        color: '#0070f3', fontWeight: 600, textDecoration: 'none',
-                        padding: '6px 14px', border: '1px solid #0070f3', borderRadius: 6,
-                        fontSize: '0.85rem'
-                      }}>View</Link>
-                      {s.status === 'active' && (
-                        <button
-                          type="button"
-                          onClick={() => handleAction(s.id, 'close')}
-                          style={{
-                            marginLeft: 10, color: '#c0392b', border: '1px solid #e74c3c',
-                            background: 'none', cursor: 'pointer', borderRadius: 6,
-                            padding: '6px 12px', fontSize: '0.85rem'
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+        {/* Browser Area */}
+        <div className="card" style={{ padding: '0' }}>
+            {/* Tabs Bar */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-container)', padding: '0 24px' }}>
+                {tabs.map(t => (
+                    <button
+                        key={t.key}
+                        onClick={() => setTab(t.key)}
+                        style={{
+                            padding: '24px 20px',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: tab === t.key ? '3px solid var(--primary)' : '3px solid transparent',
+                            color: tab === t.key ? 'var(--primary)' : 'var(--on-surface-variant)',
+                            fontWeight: tab === t.key ? 700 : 500,
+                            fontSize: '0.95rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <span className="material-icons" style={{ fontSize: '20px' }}>{t.icon}</span>
+                        {t.label}
+                        <span style={{ fontSize: '0.8em', background: tab === t.key ? 'var(--primary-fixed)' : 'var(--surface-container)', color: tab === t.key ? 'var(--primary)' : 'var(--on-surface-variant)', padding: '2px 8px', borderRadius: '12px', marginLeft: '4px' }}>{t.count}</span>
+                    </button>
                 ))}
-              </tbody>
-            </table>
-          )}
+            </div>
+
+            <div style={{ padding: '24px' }}>
+                {currentSubs.length === 0 ? (
+                    <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+                        <div style={{ 
+                            width: '80px', height: '80px', background: 'var(--surface-container-low)', 
+                            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 24px'
+                        }}>
+                            <span className="material-icons" style={{ fontSize: '40px', color: 'var(--outline-variant)' }}>folder_open</span>
+                        </div>
+                        <h3 className="headline-sm">No entries found</h3>
+                        <p className="body-md text-muted" style={{ maxWidth: '300px', margin: '8px auto 0' }}>There are currently no {tab} to display in your ledger.</p>
+                        <button onClick={() => router.push('/shop')} className="btn btn-secondary btn-sm" style={{ marginTop: '24px' }}>Visit Marketplace</button>
+                    </div>
+                ) : (
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Reference Number</th>
+                                <th>Service / Plan</th>
+                                <th>Created Date</th>
+                                {tab === 'quotations' && <th>Valid Until</th>}
+                                <th>Status</th>
+                                <th style={{ textAlign: 'right' }}>Management</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {currentSubs.map(s => (
+                                <tr key={s.id}>
+                                    <td className="font-mono" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                                        {formatSubNumber(s)}
+                                    </td>
+                                    <td>
+                                        <div style={{ fontWeight: 600 }}>{s.plan_name || 'Generic Asset'}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{s.billing_period} billing</div>
+                                    </td>
+                                    <td className="text-muted">{formatDate(s.start_date)}</td>
+                                    {tab === 'quotations' && (
+                                        <td style={{ color: s.expiration_date ? 'var(--error)' : 'var(--on-surface-variant)' }}>
+                                            {s.expiration_date ? formatDate(s.expiration_date) : '-'}
+                                        </td>
+                                    )}
+                                    <td>{statusBadge(s.status)}</td>
+                                    <td style={{ textAlign: 'right' }}>
+                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                            <Link href={`/orders/${s.id}`} className="btn btn-secondary btn-sm">
+                                                View Details
+                                            </Link>
+                                            {s.status === 'active' && (
+                                                <button
+                                                    onClick={() => handleAction(s.id, 'close')}
+                                                    className="btn btn-danger btn-sm"
+                                                >
+                                                    Terminate
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
         </div>
       </div>
     </div>

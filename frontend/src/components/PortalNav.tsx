@@ -1,10 +1,12 @@
 'use client';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getCartCount } from '@/lib/cart';
 import Cookies from 'js-cookie';
 
 export default function PortalNav() {
+  const pathname = usePathname();
   const [count, setCount] = useState(0);
   const [loggedIn, setLoggedIn] = useState(false);
 
@@ -22,46 +24,68 @@ export default function PortalNav() {
     window.dispatchEvent(new CustomEvent('toggle-cart'));
   };
 
+  const navLinkStyle = (active: boolean) => ({
+    color: active ? 'var(--primary)' : 'var(--on-surface-variant)',
+    textDecoration: 'none',
+    fontWeight: active ? 700 : 500,
+    fontSize: '0.875rem',
+    transition: 'color 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  });
+
   return (
     <nav style={{
-        padding:'16px 40px', background:'rgba(255,255,255,0.8)', backdropFilter:'blur(10px)', 
-        borderBottom:'1px solid var(--surface-container)', color:'var(--on-surface)', 
-        display:'flex', gap:'32px', alignItems:'center', position: 'sticky', top: 0, zIndex: 900
+        padding: '0 40px', 
+        height: '72px',
+        background: 'rgba(255, 255, 255, 0.75)', 
+        backdropFilter: 'blur(16px) saturate(180%)', 
+        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+        borderBottom: '1px solid var(--surface-container)', 
+        color: 'var(--on-surface)', 
+        display: 'flex', 
+        alignItems: 'center', 
+        position: 'sticky', 
+        top: 0, 
+        zIndex: 900,
+        boxShadow: 'var(--shadow-sm)'
     }}>
-      <Link href="/" style={{color:'var(--primary)', fontWeight: 900, fontSize:'1.5rem', textDecoration:'none', letterSpacing: '-0.5px'}}>SubSphere</Link>
-      <div style={{ display: 'flex', gap: '24px', marginLeft: '24px' }}>
-        <Link href="/shop" style={{color:'var(--on-surface)', textDecoration:'none', fontWeight: 600, fontSize: '0.9rem'}}>Marketplace</Link>
-        <Link href="/orders" style={{color:'var(--on-surface-variant)', textDecoration:'none', fontWeight: 500, fontSize: '0.9rem'}}>My Orders</Link>
+      <div style={{ display: 'flex', gap: '32px' }}>
+        <Link href="/shop" style={navLinkStyle(pathname === '/shop')}>
+            <span className="material-icons" style={{ fontSize: 18 }}>storefront</span>
+            Marketplace
+        </Link>
+        <Link href="/orders" style={navLinkStyle(pathname === '/orders')}>
+            <span className="material-icons" style={{ fontSize: 18 }}>history</span>
+            My Orders
+        </Link>
       </div>
       
-      <div style={{marginLeft:'auto', display: 'flex', alignItems: 'center', gap: '20px'}}>
-        {/* <button 
-            onClick={toggleCart}
-            style={{ 
-                background:'none', border:'none', cursor:'pointer', display: 'flex', alignItems: 'center', gap: '8px',
-                color: 'var(--on-surface)', fontWeight: 600, fontSize: '0.9rem'
-            }}
-        >
-            <div style={{ position: 'relative' }}>
-                <span className="material-icons">shopping_bag</span>
-                {count > 0 && (
-                    <span style={{
-                        position: 'absolute', top: -6, right: -6, background: 'var(--error)', color: 'white',
-                        fontSize: '10px', borderRadius: '50%', width: 16, height: 16, 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800
-                    }}>{count}</span>
-                )}
-            </div>
-            Cart
-        </button> */}
+      <div style={{marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '24px'}}>
 
         {loggedIn ? (
-            <Link href="/dashboard" style={{
-                background: 'var(--secondary-container)', color: 'var(--on-secondary-container)',
-                padding: '8px 16px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem'
-            }}>Admin Portal</Link>
+            <Link href="/dashboard" className="btn btn-secondary" style={{
+                padding: '10px 20px', 
+                borderRadius: 'var(--radius-lg)', 
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+            }}>
+                <span className="material-icons" style={{ fontSize: 18 }}>admin_panel_settings</span>
+                Admin Portal
+            </Link>
         ) : (
-            <Link href="/login" style={{color:'var(--primary)', textDecoration:'none', fontWeight: 700}}>Login</Link>
+            <Link href="/login" style={{
+                color: 'var(--primary)', 
+                textDecoration: 'none', 
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                padding: '8px 16px',
+                border: '2px solid var(--primary)',
+                borderRadius: 'var(--radius-md)'
+            }}>Login</Link>
         )}
       </div>
     </nav>

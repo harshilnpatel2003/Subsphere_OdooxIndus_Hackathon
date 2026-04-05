@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -13,10 +14,19 @@ export default function ShopPage() {
   const [plans, setPlans] = useState<any[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const fetchProducts = (type: string) => {
-    const url = type ? `/products/?type=${type}` : '/products/';
-    api.get(url).then(r => setProducts(r.data)).catch(() => {});
+  const fetchProducts = async (type: string) => {
+    setLoading(true);
+    try {
+        const url = type ? `/products/?type=${type}` : '/products/';
+        const res = await api.get(url);
+        setProducts(res.data);
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -28,104 +38,197 @@ export default function ShopPage() {
     return () => window.removeEventListener('toggle-cart', handleToggle);
   }, []);
 
-  const handleTypeChange = (val: string) => { setTypeFilter(val); fetchProducts(val); };
+  const handleTypeChange = (val: string) => { 
+    setTypeFilter(val); 
+    fetchProducts(val); 
+  };
 
   const addPlanToCart = (e: React.MouseEvent, plan: any) => {
     e.stopPropagation();
-    addToCart({ productId: `plan_${plan.id}`, productName: plan.name, planId: String(plan.id), planName: plan.name, billingPeriod: plan.billing_period, quantity: 1, unitPrice: Number(plan.price), taxId: null, variantId: null, productPhoto: null });
+    addToCart({ 
+        productId: `plan_${plan.id}`, 
+        productName: plan.name, 
+        planId: String(plan.id), 
+        planName: plan.name, 
+        billingPeriod: plan.billing_period, 
+        quantity: 1, 
+        unitPrice: Number(plan.price), 
+        taxId: null, 
+        variantId: null, 
+        productPhoto: null 
+    });
     setIsCartOpen(true);
   };
 
   return (
-    <div style={{ background: 'var(--surface-container-lowest)', minHeight: '100vh' }}>
+    <div style={{ background: 'var(--surface)', minHeight: '100vh', paddingBottom: '100px' }}>
       <PortalNav />
       <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       
-      <div style={{padding:'40px 20px',maxWidth:'1200px',margin:'0 auto'}}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ padding: '60px 40px', maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Header Section */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
             <div>
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, color: 'var(--on-surface)' }}>Marketplace</h1>
-                <p style={{ color: 'var(--on-surface-variant)', marginTop: 4 }}>Select products or subscription plans to begin.</p>
+                <h1 className="display-sm">Marketplace</h1>
+                <p className="body-lg text-muted" style={{ marginTop: '4px' }}>Discover premier architectural solutions and enterprise subscriptions.</p>
             </div>
             <button 
                 onClick={() => setIsCartOpen(true)}
-                style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 600, boxShadow: 'var(--shadow-md)' }}
+                className="btn btn-primary"
+                style={{ padding: '14px 28px', fontSize: '0.9rem', fontWeight: 600, boxShadow: 'var(--shadow-md)' }}
             >
                 <span className="material-icons">shopping_cart</span>
-                Checkout
+                View Ledger / Checkout
             </button>
         </div>
 
-        <div style={{marginBottom:'32px', display: 'flex', gap: '12px', alignItems: 'center'}}>
-          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--on-surface)' }}>Filter:</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {['', 'service', 'physical'].map(t => (
+        {/* Filters */}
+        <div style={{ marginBottom: '48px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <span className="label-lg" style={{ fontWeight: 700, color: 'var(--on-surface)' }}>Filter By:</span>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {[
+                { id: '', label: 'All Catalog' },
+                { id: 'service', label: 'Services' },
+                { id: 'physical', label: 'Equipment' }
+            ].map(t => (
                 <button 
-                    key={t}
-                    onClick={() => handleTypeChange(t)}
+                    key={t.id}
+                    onClick={() => handleTypeChange(t.id)}
                     style={{
-                        padding: '8px 20px', borderRadius: '24px', border: '1px solid var(--surface-container-high)',
-                        background: typeFilter === t ? 'var(--secondary-container)' : 'white',
-                        color: typeFilter === t ? 'var(--on-secondary-container)' : 'var(--on-surface-variant)',
-                        cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, transition: 'all 0.2s'
+                        padding: '10px 24px', 
+                        borderRadius: 'var(--radius-full)', 
+                        border: typeFilter === t.id ? '1px solid var(--primary)' : '1px solid var(--outline-variant)',
+                        background: typeFilter === t.id ? 'var(--primary)' : 'white',
+                        color: typeFilter === t.id ? 'white' : 'var(--on-surface-variant)',
+                        cursor: 'pointer', 
+                        fontSize: '0.875rem', 
+                        fontWeight: 600, 
+                        transition: 'all 0.2s ease',
+                        boxShadow: typeFilter === t.id ? 'var(--shadow-sm)' : 'none'
                     }}
                 >
-                    {t === '' ? 'All Products' : t.charAt(0).toUpperCase() + t.slice(1)}
+                    {t.label}
                 </button>
             ))}
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '40px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '60px', alignItems: 'start' }}>
+            {/* Products Listing */}
             <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px' }}>Recommended for you</h2>
-                <div style={{display:'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap:'24px'}}>
-                {products.map(p => (
-                    <div 
-                        key={p.id} 
-                        style={{border:'1px solid var(--surface-container-high)',padding:'20px', display:'flex', flexDirection:'column', borderRadius: '16px', background: 'white', transition: 'all 0.3s', cursor: 'pointer', boxShadow: 'var(--shadow-sm)'}} 
-                        onClick={() => router.push(`/shop/${p.id}`)}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
-                        <div style={{width:'100%', height:'180px', background:'var(--surface-container-lowest)', marginBottom:'16px', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', borderRadius:'12px', border: '1px solid var(--surface-container)'}}>
-                            {p.photo ? (
-                            <img src={p.photo} alt={p.name} style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                            ) : (
-                            <span className="material-icons" style={{fontSize: 56, color:'#ddd'}}>image</span>
-                            )}
-                        </div>
-                        <h3 style={{margin:'0 0 6px', fontSize: '1.1rem', fontWeight: 700}}>{p.name}</h3>
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                            <span style={{background:'var(--secondary-container)',padding:'2px 10px',fontSize:'0.7rem',borderRadius:'20px', color: 'var(--on-secondary-container)', fontWeight: 600}}>{p.product_type}</span>
-                        </div>
-                        <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                            <span style={{fontWeight: 900, fontSize: '1.25rem', color: 'var(--primary)'}}>{formatINR(p.sales_price)}</span>
-                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--primary-container)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <span className="material-icons" style={{ color: 'var(--on-primary-container)', fontSize: '18px' }}>add</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                    <h2 className="headline-sm">Product Catalog</h2>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--on-tertiary-container)', background: 'var(--tertiary-container)', padding: '2px 10px', borderRadius: '12px', fontWeight: 700 }}>{products.length} Items</span>
+                </div>
+                
+                {loading ? (
+                    <div style={{ padding: '80px 0', textAlign: 'center', color: 'var(--outline)' }}>
+                        <div className="material-icons" style={{ fontSize: '48px', opacity: 0.1, marginBottom: '16px' }}>architecture</div>
+                        <p>Syncing product metadata...</p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
+                    {products.map(p => (
+                        <div 
+                            key={p.id} 
+                            className="card"
+                            style={{ 
+                                padding: '16px', display: 'flex', flexDirection: 'column', 
+                                border: '1px solid var(--surface-container)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                                cursor: 'pointer', position: 'relative', overflow: 'hidden'
+                            }} 
+                            onClick={() => router.push(`/shop/${p.id}`)}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-8px)';
+                                e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+                                e.currentTarget.style.borderColor = 'var(--primary)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                                e.currentTarget.style.borderColor = 'var(--surface-container)';
+                            }}
+                        >
+                            <div style={{ 
+                                width: '100%', height: '220px', background: 'var(--surface-container-low)', 
+                                marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                overflow: 'hidden', borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-container)'
+                            }}>
+                                {p.photo ? (
+                                    <img src={p.photo} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <span className="material-icons" style={{ fontSize: 64, color: 'var(--outline-variant)' }}>auto_awesome</span>
+                                )}
+                            </div>
+                            <div style={{ padding: '0 8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                                    <h3 className="title-lg" style={{ marginBottom: '4px' }}>{p.name}</h3>
+                                    <span className={`badge ${p.product_type === 'service' ? 'badge-confirmed' : 'badge-draft'}`} style={{ textTransform: 'capitalize' }}>{p.product_type}</span>
+                                </div>
+                                <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span className="label-sm">Retail Value</span>
+                                        <span style={{ fontWeight: 900, fontSize: '1.5rem', color: 'var(--primary)', letterSpacing: '-0.02em' }}>{formatINR(p.sales_price)}</span>
+                                    </div>
+                                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)' }}>
+                                        <span className="material-icons" style={{ color: 'white', fontSize: '20px' }}>arrow_forward</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    ))}
+                    {products.length === 0 && (
+                        <div style={{ gridColumn: '1/-1', padding: '100px 0', textAlign: 'center' }}>
+                            <span className="material-icons" style={{ fontSize: '64px', color: 'var(--outline-variant)', opacity: 0.3 }}>search_off</span>
+                            <p className="body-lg text-muted" style={{ marginTop: '16px' }}>No entries match your search criteria.</p>
+                        </div>
+                    )}
                     </div>
-                ))}
-                {products.length === 0 && <p style={{ color: 'var(--on-surface-variant)' }}>No products found.</p>}
-                </div>
+                )}
             </div>
 
-            <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px' }}>Subscription Plans</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Plans List */}
+            <div style={{ position: 'sticky', top: '120px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                    <h2 className="headline-sm">Plans</h2>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--primary)', background: 'var(--primary-fixed)', padding: '2px 10px', borderRadius: '12px', fontWeight: 700 }}>{plans.length} available</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {plans.map(p => (
-                        <div key={p.id} style={{ padding: '24px', border: '1px solid var(--surface-container-high)', borderRadius: '20px', background: 'white', boxShadow: 'var(--shadow-sm)' }}>
-                            <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--on-surface)' }}>{p.name}</div>
-                            <div style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '1.25rem', marginTop: '8px' }}>
+                        <div 
+                            key={p.id} 
+                            className="card"
+                            style={{ 
+                                padding: '32px', 
+                                border: '1px solid var(--surface-container)', 
+                                borderTop: '4px solid var(--primary)', 
+                                position: 'relative',
+                                background: 'linear-gradient(to bottom, white, var(--surface-container-low))'
+                            }}
+                        >
+                            <div className="title-lg" style={{ color: 'var(--primary)', letterSpacing: '-0.01em', marginBottom: '8px' }}>{p.name}</div>
+                            <div style={{ fontSize: '2.25rem', fontWeight: 900, color: 'var(--on-surface)', letterSpacing: '-0.03em', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
                                 {formatINR(p.price)}
-                                <span style={{ fontSize: '0.8rem', color: 'var(--on-surface-variant)', fontWeight: 400 }}> / {p.billing_period}</span>
+                                <span className="label-lg" style={{ color: 'var(--on-surface-variant)', fontWeight: 400 }}> / {p.billing_period}</span>
                             </div>
+                            
+                            <ul style={{ listStyle: 'none', padding: 0, margin: '24px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {[
+                                    { icon: 'done', text: `Minimum commitment: ${p.min_quantity} units` },
+                                    { icon: 'done', text: 'Architectural Ledger integration' },
+                                    { icon: 'done', text: 'Enterprise compliance enabled' }
+                                ].map((item, idx) => (
+                                    <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', color: 'var(--on-surface-variant)' }}>
+                                        <span className="material-icons" style={{ fontSize: '16px', color: 'var(--on-tertiary-container)' }}>{item.icon}</span>
+                                        {item.text}
+                                    </li>
+                                ))}
+                            </ul>
+
                             <button 
                                 onClick={(e) => addPlanToCart(e, p)}
-                                style={{ width: '100%', marginTop: '20px', padding: '12px', borderRadius: '12px', border: '2px solid var(--primary)', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', transition: 'all 0.2s' }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = 'white'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--primary)'; }}
+                                className="btn btn-primary"
+                                style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-lg)', fontWeight: 700, fontSize: '0.95rem' }}
                             >
                                 Get Started
                             </button>
