@@ -125,11 +125,6 @@ export default function LoginPage() {
         background: 'var(--surface-container-lowest)',
       }}>
         <div style={{ width: '100%', maxWidth: '400px' }}>
-          <Link href="/shop" className="label-md" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--on-surface-variant)', marginBottom: '40px', textDecoration: 'none' }}>
-            <span className="material-icons" style={{ fontSize: '16px' }}>arrow_back</span>
-            Return to Marketplace
-          </Link>
-
           {registered && (
             <div style={{
               background: 'rgba(97, 157, 127, 0.15)',
@@ -200,7 +195,7 @@ export default function LoginPage() {
           <div style={{ marginTop: '32px', textAlign: 'center' }}>
             <p className="body-md text-muted">
               Unauthorized user? {' '}
-              <Link href="/register" style={{ color: 'var(--primary)', fontWeight: 700 }}>Request Provisioning</Link>
+              <Link href="/register" style={{ color: 'var(--primary)', fontWeight: 700 }}>Create Account</Link>
             </p>
           </div>
         </div>

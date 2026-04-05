@@ -103,12 +103,12 @@ export default function RegisterPage() {
         background: 'var(--surface-container-lowest)',
       }}>
         <div style={{ width: '100%', maxWidth: '400px' }}>
-          <Link href="/" className="label-md" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--on-surface-variant)', marginBottom: '40px', textDecoration: 'none' }}>
+          <Link href="/login" className="label-md" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--on-surface-variant)', marginBottom: '40px', textDecoration: 'none' }}>
             <span className="material-icons" style={{ fontSize: '16px' }}>arrow_back</span>
-            Return to Marketplace
+            Already a member? Login here
           </Link>
 
-          <h2 className="headline-md">Provisioning Request</h2>
+          <h2 className="headline-md">Create Account</h2>
           <p className="body-md text-muted" style={{ marginTop: '4px', marginBottom: '40px' }}>Join the architectural network to begin managing your subscription catalog.</p>
 
           <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
