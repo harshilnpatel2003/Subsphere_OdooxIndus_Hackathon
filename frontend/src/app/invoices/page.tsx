@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import api from '@/lib/api';
 import withAuth from '@/components/withAuth';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -84,6 +85,8 @@ function InvoicesPage() {
             <thead>
               <tr>
                 <th>Invoice #</th>
+                <th>Subscription</th>
+                <th>Plan</th>
                 <th>Status</th>
                 <th>Issue Date</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
@@ -96,6 +99,14 @@ function InvoicesPage() {
                   <td>
                     <div style={{ fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'monospace' }}>{inv.invoice_number}</div>
                   </td>
+                  <td>
+                    {inv.subscription ? (
+                        <Link href={`/subscriptions/${inv.subscription}`} style={{ fontSize: '0.8125rem', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+                            {inv.subscription_number || `SUB-${inv.subscription}`}
+                        </Link>
+                    ) : '—'}
+                  </td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--on-surface-variant)' }}>{inv.plan_name || 'Standard'}</td>
                   <td><span className={`badge ${statusClass(inv.status)}`}>{inv.status.toUpperCase()}</span></td>
                   <td style={{ color: 'var(--on-surface-variant)' }}>{inv.issue_date || '—'}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, fontFamily: 'monospace' }}>

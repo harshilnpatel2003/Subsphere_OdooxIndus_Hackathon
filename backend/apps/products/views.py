@@ -1,12 +1,27 @@
 from rest_framework import viewsets
+from rest_framework.pagination import PageNumberPagination
 from .models import Product, ProductVariant
 from .serializers import ProductSerializer, ProductVariantSerializer
 from apps.users.permissions import IsAdminOrReadOnly
 
 
+class OptionalPageNumberPagination(PageNumberPagination):
+    """Only paginate when ?page= is present in the request.
+    This keeps dropdown/select endpoints (no ?page=) returning flat arrays."""
+    page_size = 12
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+    def paginate_queryset(self, queryset, request, view=None):
+        if 'page' not in request.query_params:
+            return None
+        return super().paginate_queryset(queryset, request, view)
+
+
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [IsAdminOrReadOnly]
+    pagination_class = OptionalPageNumberPagination
 
     def get_queryset(self):
         qs = Product.objects.filter(is_active=True)
@@ -16,6 +31,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         recurring = self.request.query_params.get('recurring')
         if recurring == 'true':
             qs = qs.filter(is_recurring=True)
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(name__icontains=search)
         limit = self.request.query_params.get('limit')
         if limit:
             try:

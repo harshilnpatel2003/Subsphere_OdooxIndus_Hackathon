@@ -96,6 +96,7 @@ function SubscriptionDetailPage() {
   const router = useRouter();
   const id = params?.id;
   const [sub, setSub] = useState<any>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -108,8 +109,12 @@ function SubscriptionDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const res = await api.get(`/subscriptions/${id}/`);
-      setSub(res.data);
+      const [sRes, iRes] = await Promise.all([
+        api.get(`/subscriptions/${id}/`),
+        api.get(`/invoices/?subscription=${id}`)
+      ]);
+      setSub(sRes.data);
+      setInvoices(iRes.data || []);
     } catch (err) {
       console.error(err);
       router.push('/subscriptions');
@@ -127,11 +132,23 @@ function SubscriptionDetailPage() {
         router.push(`/invoices/${res.data.invoice_id}`);
       } else if (actionPath === 'upsell' && res.data.subscription_id) {
         router.push(`/subscriptions/${res.data.subscription_id}`);
+      } else if (actionPath === 'confirm' && res.data.razorpay_subscription_id) {
+          // If a mandate subscription was created, open the checkout
+          const { openRazorpaySubscription } = await import('@/lib/razorpay');
+          await openRazorpaySubscription(String(id), () => {
+              fetchData();
+          });
       } else {
         await fetchData();
       }
     } catch (err: any) {
-      alert(err.response?.data?.error || `Error during ${actionPath}`);
+      if (err.response?.status === 409 && err.response?.data?.invoice_id) {
+          if (confirm('An unpaid invoice already exists for this cycle. View it now?')) {
+              router.push(`/invoices/${err.response.data.invoice_id}`);
+          }
+      } else {
+          alert(err.response?.data?.error || `Error during ${actionPath}`);
+      }
     } finally {
       setProcessing(false);
     }
@@ -210,6 +227,18 @@ function SubscriptionDetailPage() {
         </div>
       }
     >
+      {sub.razorpay_subscription_id && (
+        <div style={{
+            background: 'var(--primary-container)', color: 'var(--on-primary-container)',
+            padding: '12px 20px', borderRadius: 'var(--radius-md)', marginBottom: 20,
+            display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.9rem'
+        }}>
+            <span className="material-icons" style={{ fontSize: 20 }}>autorenew</span>
+            <div>
+                <strong>Autopay Mandate Active:</strong> {sub.razorpay_subscription_id} ({sub.razorpay_subscription_status})
+            </div>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
         {/* Main Info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -302,13 +331,31 @@ function SubscriptionDetailPage() {
           </div>
 
           <div className="card">
-             <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Related Invoices</h2>
-             {/* If invoices are serialized inside subscription get request, we could show them here. But for now we use a generic link since API payload doesn't return invoices perfectly nested yet in this specific route without custom serializer injection. */}
-             <div style={{ fontSize: '0.875rem', color: 'var(--on-surface-variant)' }}>
-                 Invoices generated against this order are tracked in your ledger dynamically. You can review them in the main ledger dashboard.
+             <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--on-surface)', marginBottom: 16 }}>Recent Invoices</h2>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                 {invoices.length > 0 ? (
+                     invoices.slice(0, 5).map((inv: any) => (
+                         <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, borderBottom: '1px solid var(--surface-container)' }}>
+                             <div>
+                                 <Link href={`/invoices/${inv.id}`} style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--primary)', textDecoration: 'none' }}>
+                                     {inv.invoice_number}
+                                 </Link>
+                                 <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>{inv.issue_date}</div>
+                             </div>
+                             <div style={{ textAlign: 'right' }}>
+                                 <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>INR {inv.total}</div>
+                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: inv.status === 'paid' ? 'var(--primary)' : 'var(--warning)' }}>
+                                     {inv.status}
+                                 </span>
+                             </div>
+                         </div>
+                     ))
+                 ) : (
+                     <div style={{ fontSize: '0.85rem', color: 'var(--on-surface-variant)' }}>No invoices generated yet.</div>
+                 )}
              </div>
-             <Link href={`/invoices?subscription=${sub.id}`} className="btn btn-secondary btn-sm" style={{ marginTop: 12, display: 'inline-flex', textDecoration: 'none' }}>
-                 View Financial Ledger
+             <Link href={`/invoices?subscription=${sub.id}`} className="btn btn-secondary btn-sm" style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}>
+                 View Full Ledger
              </Link>
           </div>
         </div>

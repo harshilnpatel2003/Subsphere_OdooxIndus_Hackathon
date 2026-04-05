@@ -1,0 +1,59 @@
+﻿src/app/analyticsandreport/page.tsx(128,26): error TS2786: 'ResponsiveContainer' cannot be used as a JSX component.
+  Its type 'ForwardRefExoticComponent<Props & RefAttributes<HTMLDivElement>>' is not a valid JSX element type.
+    Type 'ForwardRefExoticComponent<Props & RefAttributes<HTMLDivElement>>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'import("H:/Subsphere/Subsphere_OdooxIndus_Hackathon/node_modules/@types/react/index").ReactNode' is not assignable to type 'React.ReactNode'.
+        Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+          Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(129,30): error TS2786: 'BarChart' cannot be used as a JSX component.
+  Its type '<DataPointType = any>(props: CartesianChartProps<DataPointType> & { ref?: Ref<SVGSVGElement> | undefined; }) => ReactElement<unknown, string | JSXElementConstructor<any>>' is not a valid JSX element type.
+    Type '<DataPointType = any>(props: CartesianChartProps<DataPointType> & { ref?: Ref<SVGSVGElement> | undefined; }) => ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+        Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(130,34): error TS2786: 'XAxis' cannot be used as a JSX component.
+  Its type '<DataPointType = any, DataValueType = any>(props: Props<DataPointType, DataValueType>) => ReactElement<unknown, string | JSXElementConstructor<any>>' is not a valid JSX element type.
+    Type '<DataPointType = any, DataValueType = any>(props: Props<DataPointType, DataValueType>) => ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+        Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(140,37): error TS2322: Type '(value: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(value: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/app/analyticsandreport/page.tsx(142,34): error TS2786: 'Bar' cannot be used as a JSX component.
+  Its type '<DataPointType = any, ValueAxisType = any>(props: Props<DataPointType, ValueAxisType>) => ReactElement<unknown, string | JSXElementConstructor<any>>' is not a valid JSX element type.
+    Type '<DataPointType = any, ValueAxisType = any>(props: Props<DataPointType, ValueAxisType>) => ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+        Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(150,42): error TS2786: 'Cell' cannot be used as a JSX component.
+  Its type 'FunctionComponent<Props>' is not a valid JSX element type.
+    Type 'FunctionComponent<Props>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'ReactNode | Promise<ReactNode>' is not assignable to type 'ReactNode'.
+        Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+          Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(205,30): error TS2786: 'ResponsiveContainer' cannot be used as a JSX component.
+  Its type 'ForwardRefExoticComponent<Props & RefAttributes<HTMLDivElement>>' is not a valid JSX element type.
+    Type 'ForwardRefExoticComponent<Props & RefAttributes<HTMLDivElement>>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'import("H:/Subsphere/Subsphere_OdooxIndus_Hackathon/node_modules/@types/react/index").ReactNode' is not assignable to type 'React.ReactNode'.
+        Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+          Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(206,34): error TS2786: 'PieChart' cannot be used as a JSX component.
+  Its type '<DataPointType = any>(props: PolarChartProps<DataPointType> & { ref?: Ref<SVGSVGElement> | undefined; }) => ReactElement<unknown, string | JSXElementConstructor<any>>' is not a valid JSX element type.
+    Type '<DataPointType = any>(props: PolarChartProps<DataPointType> & { ref?: Ref<SVGSVGElement> | undefined; }) => ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+        Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(207,38): error TS2786: 'Pie' cannot be used as a JSX component.
+  Its type '{ <DataPointType = any, DataValueType = any>(outsideProps: Props<DataPointType, DataValueType>): ReactElement<unknown, string | JSXElementConstructor<any>>; (outsideProps: Props<...>): ReactElement<...>; }' is not a valid JSX element type.
+    Type '{ <DataPointType = any, DataValueType = any>(outsideProps: Props<DataPointType, DataValueType>): ReactElement<unknown, string | JSXElementConstructor<any>>; (outsideProps: Props<...>): ReactElement<...>; }' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+        Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(216,46): error TS2786: 'Cell' cannot be used as a JSX component.
+  Its type 'FunctionComponent<Props>' is not a valid JSX element type.
+    Type 'FunctionComponent<Props>' is not assignable to type '(props: any, deprecatedLegacyContext?: any) => ReactNode'.
+      Type 'ReactNode | Promise<ReactNode>' is not assignable to type 'ReactNode'.
+        Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactNode'.
+          Property 'children' is missing in type 'ReactElement<unknown, string | JSXElementConstructor<any>>' but required in type 'ReactPortal'.
+src/app/analyticsandreport/page.tsx(220,41): error TS2322: Type '(value: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(value: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.

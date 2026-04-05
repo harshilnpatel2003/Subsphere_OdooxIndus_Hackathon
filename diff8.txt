@@ -1,0 +1,1035 @@
+﻿diff --git a/backend/apps/discounts/models.py b/backend/apps/discounts/models.py
+index fc756e2..90614b3 100644
+--- a/backend/apps/discounts/models.py
++++ b/backend/apps/discounts/models.py
+@@ -19,7 +19,21 @@ class Discount(models.Model):
+     end_date = models.DateField(null=True, blank=True)
+     usage_limit = models.PositiveIntegerField(null=True, blank=True)
+     current_usage = models.PositiveIntegerField(default=0)
++    max_uses_per_user = models.PositiveIntegerField(null=True, blank=True, help_text='Max times a single user can apply this code. Null = unlimited.')
+     applies_to = models.CharField(max_length=20, choices=AppliesToType.choices, default=AppliesToType.PRODUCT)
+ 
+     def __str__(self):
+         return self.name
++
++
++class DiscountUsage(models.Model):
++    """Tracks each time a specific user redeems a discount code."""
++    discount = models.ForeignKey(Discount, on_delete=models.CASCADE, related_name='usages')
++    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='discount_usages')
++    used_at = models.DateTimeField(auto_now_add=True)
++
++    class Meta:
++        verbose_name_plural = 'Discount Usages'
++
++    def __str__(self):
++        return f"{self.user} used {self.discount.code}"
+diff --git a/backend/apps/discounts/views.py b/backend/apps/discounts/views.py
+index a3a459c..dbf0410 100644
+--- a/backend/apps/discounts/views.py
++++ b/backend/apps/discounts/views.py
+@@ -21,13 +21,20 @@ class DiscountViewSet(viewsets.ModelViewSet):
+             
+         discount = Discount.objects.filter(code=code).first()
+         if not discount:
+-            return Response({'error': 'Invalid code'}, status=400)
++            return Response({'error': 'Invalid or expired code'}, status=400)
+             
+         if discount.usage_limit and discount.current_usage >= discount.usage_limit:
+             return Response({'error': 'Usage limit reached'}, status=400)
++
++        # Per-user usage check
++        if discount.max_uses_per_user:
++            from apps.discounts.models import DiscountUsage
++            user_usage = DiscountUsage.objects.filter(discount=discount, user=request.user).count()
++            if user_usage >= discount.max_uses_per_user:
++                return Response({'error': f'You have already used this code the maximum allowed times ({discount.max_uses_per_user})'}, status=400)
+             
+         if cart_total < float(discount.min_purchase):
+-            return Response({'error': 'Below min purchase'}, status=400)
++            return Response({'error': f'Minimum purchase of Γé╣{discount.min_purchase} required'}, status=400)
+             
+         amount_off = 0
+         if discount.discount_type == 'fixed':
+@@ -35,4 +42,11 @@ class DiscountViewSet(viewsets.ModelViewSet):
+         else: # percentage
+             amount_off = cart_total * float(discount.value) / 100.0
+             
+-        return Response({'discount_amount': amount_off})
++        return Response({
++            'discount_id': discount.id,
++            'discount_code': discount.code,
++            'discount_amount': amount_off,
++            'discount_type': discount.discount_type,
++            'discount_value': float(discount.value),
++            'max_uses_per_user': discount.max_uses_per_user,
++        })
+diff --git a/backend/apps/subscriptions/views.py b/backend/apps/subscriptions/views.py
+index 7ebb15f..d1143b7 100644
+--- a/backend/apps/subscriptions/views.py
++++ b/backend/apps/subscriptions/views.py
+@@ -92,6 +92,9 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
+         """Accept cart items, create one subscription + auto-confirm + generate invoice."""
+         items = request.data.get('items', [])
+         plan_id = request.data.get('plan_id')
++        discount_code = request.data.get('discount_code')
++        discount_amount = request.data.get('discount_amount', 0)
++
+         if not items:
+             return Response({'error': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
+ 
+@@ -115,12 +118,32 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
+         sub.save()
+         invoice = self._generate_invoice(sub)
+ 
++        # Apply promo code discount if provided
++        if discount_code and float(discount_amount) > 0:
++            try:
++                from apps.discounts.models import Discount, DiscountUsage
++                discount_obj = Discount.objects.filter(code=discount_code).first()
++                if discount_obj:
++                    # Reduce invoice total by promo discount amount
++                    promo_amount = min(float(discount_amount), float(invoice.total))
++                    invoice.discount_amount = float(invoice.discount_amount or 0) + promo_amount
++                    invoice.total = max(0, float(invoice.total) - promo_amount)
++                    invoice.save()
++                    # Track per-user usage
++                    DiscountUsage.objects.create(discount=discount_obj, user=request.user)
++                    # Increment global usage counter
++                    discount_obj.current_usage += 1
++                    discount_obj.save(update_fields=['current_usage'])
++            except Exception:
++                pass  # Don't fail checkout if discount tracking fails
++
+         return Response({
+             'subscription_id': sub.id,
+             'subscription_number': sub.subscription_number,
+             'invoice_id': invoice.id,
+         }, status=status.HTTP_201_CREATED)
+ 
++
+     @action(detail=True, methods=['post'])
+     def close(self, request, pk=None):
+         sub = self.get_object()
+diff --git a/frontend/src/app/cart/page.tsx b/frontend/src/app/cart/page.tsx
+index b081b72..077579c 100644
+--- a/frontend/src/app/cart/page.tsx
++++ b/frontend/src/app/cart/page.tsx
+@@ -1,10 +1,11 @@
+ 'use client';
+ 
+ import { useEffect, useState } from 'react';
++import Link from 'next/link';
+ import { useRouter } from 'next/navigation';
+ import api from '@/lib/api';
+ import PortalNav from '@/components/PortalNav';
+-import { getCart, removeFromCart, updateQuantity, clearCart, getCartTotal, Cart as CartObj } from '@/lib/cart';
++import { getCart, removeFromCart, updateQuantity, clearCart, getCartTotal, applyDiscount, Cart as CartObj } from '@/lib/cart';
+ import { formatINR } from '@/lib/formatters';
+ import { openRazorpayCheckout } from '@/lib/razorpay';
+ import withAuth from '@/components/withAuth';
+@@ -13,216 +14,321 @@ function CartPage() {
+   const router = useRouter();
+   const [cart, setCart] = useState<CartObj | null>(null);
+   const [discountCode, setDiscountCode] = useState('');
+-  const [status, setStatus] = useState('');
++  const [promoStatus, setPromoStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
++  const [paymentError, setPaymentError] = useState('');
+   const [loading, setLoading] = useState(false);
+-  const [error, setError] = useState('');
++  const [promoLoading, setPromoLoading] = useState(false);
+ 
+-  const refreshCart = () => {
+-    setCart(getCart());
+-  };
++  const refreshCart = () => setCart(getCart());
++
++  useEffect(() => { refreshCart(); }, []);
+ 
++  // Pre-fill discount code field if a code is already applied
+   useEffect(() => {
+-    refreshCart();
+-  }, []);
++    if (cart?.discountCode) setDiscountCode(cart.discountCode);
++  }, [cart?.discountCode]);
+ 
+   const handleApplyDiscount = async () => {
+-    if (!cart || !discountCode) return;
+-    setLoading(true);
+-    setError('');
++    if (!cart || !discountCode.trim()) return;
++    setPromoLoading(true);
++    setPromoStatus(null);
+     try {
+       const res = await api.post('/discounts/validate/', {
+-        code: discountCode,
+-        cart_total: getCartTotal(cart)
++        code: discountCode.trim(),
++        cart_total: getCartTotal(cart),
++      });
++      applyDiscount(discountCode.trim(), res.data.discount_amount);
++      refreshCart();
++      setPromoStatus({
++        type: 'success',
++        msg: `Γ£ô "${discountCode.toUpperCase()}" applied ΓÇö ${formatINR(res.data.discount_amount)} off`,
+       });
+-      // Store discount amount in cart for logic?
+-      // For this hackathon, we manually update temporary state
+-      setStatus(`Γ£ô Discount applied: -${formatINR(res.data.discount_amount)}`);
+-      // Update cart state locally
+-      const updatedCart = { ...cart, discountCode: discountCode, discountAmount: res.data.discount_amount };
+-      setCart(updatedCart);
+-      setLoading(false);
+     } catch (err: any) {
+-      setError(err.response?.data?.error || 'Invalid or expired code');
+-      setLoading(false);
++      setPromoStatus({
++        type: 'error',
++        msg: err.response?.data?.error || 'Invalid or expired code',
++      });
++    } finally {
++      setPromoLoading(false);
+     }
+   };
+ 
++  const handleRemoveDiscount = () => {
++    applyDiscount('', 0);
++    setDiscountCode('');
++    setPromoStatus(null);
++    refreshCart();
++  };
++
+   const handleCheckout = async () => {
+     if (!cart || cart.items.length === 0) return;
+     setLoading(true);
+-    setError('');
+-    
++    setPaymentError('');
++
+     try {
+-      // Step 1: Create subscription and invoice from cart
+       const subRes = await api.post('/subscriptions/from-cart/', {
+         items: cart.items,
+-        plan_id: cart.items.find(i => i.planId)?.planId || null // Simple logic: use first plan found
++        plan_id: cart.items.find(i => i.planId)?.planId || null,
++        discount_code: cart.discountCode || undefined,
++        discount_amount: cart.discountAmount || 0,
+       });
+-      
+-      const { subscription_id, invoice_id } = subRes.data;
+-      
+-      // Step 2 & 3: Payment process
++
++      const { invoice_id, subscription_id } = subRes.data;
++
+       await openRazorpayCheckout(
+-        invoice_id, 
+-        (verifyRes) => {
+-          // Success!
++        invoice_id,
++        () => {
+           clearCart();
+           router.push(`/order/success?sub=${subscription_id}`);
+         },
+         () => {
+-          // Cancelled
+-          setStatus('Payment cancelled. Your subscription is preserved in "Draft/Confirmed" status.');
++          // User dismissed modal ΓÇö keep their cart
++          setLoading(false);
++        },
++        (errMsg) => {
++          setPaymentError(errMsg);
+           setLoading(false);
+         }
+       );
+     } catch (err: any) {
+-      console.error(err);
+-      setError(err.response?.data?.error || 'Checkout failed');
++      setPaymentError(err.response?.data?.error || 'Checkout failed. Please try again.');
+       setLoading(false);
+     }
+   };
+ 
+-  if (!cart) return <div><PortalNav /><div style={{padding:'20px'}}>Loading...</div></div>;
++  if (!cart) {
++    return (
++      <div>
++        <PortalNav />
++        <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>Loading cartΓÇª</div>
++      </div>
++    );
++  }
+ 
+   const subtotal = getCartTotal(cart);
+-  const total = Math.max(0, subtotal - cart.discountAmount);
++  const total = Math.max(0, subtotal - (cart.discountAmount || 0));
++  const hasAppliedDiscount = cart.discountCode && cart.discountAmount > 0;
+ 
+   return (
+     <div>
+       <PortalNav />
+-      <div style={{padding:'20px', maxWidth:'1000px', margin:'0 auto'}}>
+-        <h1>Shopping Cart</h1>
+-        
++      <div style={{ padding: '24px', maxWidth: '1080px', margin: '0 auto' }}>
++        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: 24 }}>Shopping Cart</h1>
++
+         {cart.items.length === 0 ? (
+-          <div>
+-            <p>Your cart is empty.</p>
+-            <Link href="/shop" style={{color:'#0070f3'}}>Browse products</Link>
++          <div style={{ textAlign: 'center', padding: 60 }}>
++            <p style={{ color: '#666', marginBottom: 16 }}>Your cart is empty.</p>
++            <Link href="/shop" style={{ color: '#0070f3', fontWeight: 600 }}>Browse products ΓåÆ</Link>
+           </div>
+         ) : (
+-          <div style={{display:'flex', gap:'40px', marginTop:'20px'}}>
+-            <div style={{flex: 1}}>
+-              <table style={{width:'100%', borderCollapse:'collapse'}}>
+-                <thead>
+-                  <tr style={{background:'#f9f9f9', borderBottom:'1px solid #ddd'}}>
+-                    <th style={{padding:'10px', textAlign:'left'}}>Image</th>
+-                    <th style={{padding:'10px', textAlign:'left'}}>Product</th>
+-                    <th style={{padding:'10px', textAlign:'center'}}>Qty</th>
+-                    <th style={{padding:'10px', textAlign:'right'}}>Price</th>
+-                    <th style={{padding:'10px', textAlign:'right'}}>Total</th>
+-                    <th style={{padding:'10px', textAlign:'center'}}></th>
+-                  </tr>
+-                </thead>
+-                <tbody>
+-                  {cart.items.map((item, idx) => (
+-                    <tr key={idx} style={{borderBottom:'1px solid #eee'}}>
+-                      <td style={{padding:'10px'}}>
+-                        <div style={{width:'50px', height:'50px', background:'#f5f5f5', borderRadius:'4px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center'}}>
+-                          {item.productPhoto ? (
+-                            <img src={item.productPhoto} alt={item.productName} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+-                          ) : (
+-                            <span className="material-icons" style={{fontSize: 24, color:'#ccc', fontFamily:'Material Icons'}}>image</span>
+-                          )}
+-                        </div>
+-                      </td>
+-                      <td style={{padding:'10px'}}>
+-                        <strong>{item.productName}</strong>
+-                        {item.planName && <div style={{fontSize:'0.8em', color:'#666'}}>{item.planName} ({item.billingPeriod})</div>}
+-                      </td>
+-                      <td style={{padding:'10px', textAlign:'center'}}>
+-                        <input 
+-                          type="number" 
+-                          min="1" 
+-                          value={item.quantity} 
+-                          onChange={(e) => {
+-                            updateQuantity(item.productId, item.planId, parseInt(e.target.value) || 1);
+-                            refreshCart();
+-                          }}
+-                          style={{width:'50px', padding:'5px'}}
+-                        />
+-                      </td>
+-                      <td style={{padding:'10px', textAlign:'right'}}>{formatINR(item.unitPrice)}</td>
+-                      <td style={{padding:'10px', textAlign:'right'}}>{formatINR(item.unitPrice * item.quantity)}</td>
+-                      <td style={{padding:'10px', textAlign:'center'}}>
+-                        <button 
+-                          onClick={() => { removeFromCart(item.productId, item.planId); refreshCart(); }}
+-                          style={{color:'red', border:'none', background:'none', cursor:'pointer'}}
+-                        >
+-                          Remove
+-                        </button>
+-                      </td>
++          <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
++
++            {/* Items Table */}
++            <div style={{ flex: 1, minWidth: 0 }}>
++              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
++                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
++                  <thead>
++                    <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
++                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280', letterSpacing: '0.05em' }}>Product</th>
++                      <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280', letterSpacing: '0.05em' }}>Qty</th>
++                      <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280', letterSpacing: '0.05em' }}>Unit</th>
++                      <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280', letterSpacing: '0.05em' }}>Total</th>
++                      <th style={{ padding: '12px 16px' }}></th>
+                     </tr>
+-                  ))}
+-                </tbody>
+-              </table>
+-
+-              <div style={{marginTop:'30px', padding:'15px', border:'1px solid #ddd', borderRadius:'4px', maxWidth:'400px'}}>
+-                <h4>Discount Code</h4>
+-                <div style={{display:'flex', gap:'10px', marginTop:'10px'}}>
+-                  <input 
+-                    type="text" 
+-                    placeholder="Enter code" 
+-                    value={discountCode}
+-                    onChange={(e) => setDiscountCode(e.target.value)}
+-                    style={{flex: 1, padding:'8px'}}
+-                  />
+-                  <button 
+-                    onClick={handleApplyDiscount} 
+-                    disabled={loading}
+-                    style={{padding:'8px 15px', cursor:'pointer'}}
+-                  >
+-                    Apply
+-                  </button>
++                  </thead>
++                  <tbody>
++                    {cart.items.map((item, idx) => (
++                      <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
++                        <td style={{ padding: '14px 16px' }}>
++                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
++                            <div style={{ width: 44, height: 44, background: '#f5f5f5', borderRadius: 8, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
++                              {item.productPhoto
++                                ? <img src={item.productPhoto} alt={item.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
++                                : <span className="material-icons" style={{ fontSize: 22, color: '#ccc' }}>inventory_2</span>
++                              }
++                            </div>
++                            <div>
++                              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{item.productName}</div>
++                              {item.planName && (
++                                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 2 }}>
++                                  {item.planName} ┬╖ {item.billingPeriod}
++                                </div>
++                              )}
++                            </div>
++                          </div>
++                        </td>
++                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
++                          <input
++                            type="number"
++                            min="1"
++                            value={item.quantity}
++                            onChange={(e) => {
++                              updateQuantity(item.productId, item.planId, parseInt(e.target.value) || 1);
++                              refreshCart();
++                            }}
++                            style={{ width: 56, padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, textAlign: 'center', fontSize: '0.875rem' }}
++                          />
++                        </td>
++                        <td style={{ padding: '14px 16px', textAlign: 'right', fontSize: '0.875rem', color: '#374151' }}>{formatINR(item.unitPrice)}</td>
++                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, fontSize: '0.875rem' }}>{formatINR(item.unitPrice * item.quantity)}</td>
++                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
++                          <button
++                            onClick={() => { removeFromCart(item.productId, item.planId); refreshCart(); }}
++                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 4 }}
++                            title="Remove item"
++                          >
++                            <span className="material-icons" style={{ fontSize: 18 }}>delete_outline</span>
++                          </button>
++                        </td>
++                      </tr>
++                    ))}
++                  </tbody>
++                </table>
++              </div>
++
++              {/* Promo Code Section */}
++              <div style={{ marginTop: 20, background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: '20px 24px' }}>
++                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
++                  <span className="material-icons" style={{ fontSize: 18, color: '#6b7280' }}>local_offer</span>
++                  <h4 style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111' }}>Promo Code</h4>
+                 </div>
+-                {status && <p style={{color:'green', fontSize:'0.9em', marginTop:'5px'}}>{status}</p>}
+-                {error && <p style={{color:'red', fontSize:'0.9em', marginTop:'5px'}}>{error}</p>}
++
++                {hasAppliedDiscount ? (
++                  /* Applied state */
++                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px' }}>
++                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
++                      <span className="material-icons" style={{ fontSize: 18, color: '#16a34a' }}>check_circle</span>
++                      <div>
++                        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#15803d' }}>{cart.discountCode?.toUpperCase()}</span>
++                        <span style={{ fontSize: '0.8rem', color: '#166534', marginLeft: 8 }}>ΓêÆ {formatINR(cart.discountAmount)}</span>
++                      </div>
++                    </div>
++                    <button
++                      onClick={handleRemoveDiscount}
++                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '0.8rem', fontWeight: 600 }}
++                    >
++                      Remove
++                    </button>
++                  </div>
++                ) : (
++                  /* Input state */
++                  <>
++                    <div style={{ display: 'flex', gap: 10 }}>
++                      <input
++                        type="text"
++                        placeholder="Enter promo code"
++                        value={discountCode}
++                        onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
++                        onKeyDown={(e) => e.key === 'Enter' && handleApplyDiscount()}
++                        style={{ flex: 1, padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: '0.875rem', fontFamily: 'monospace', letterSpacing: '0.05em' }}
++                      />
++                      <button
++                        onClick={handleApplyDiscount}
++                        disabled={promoLoading || !discountCode.trim()}
++                        style={{ padding: '10px 18px', background: '#0b1c30', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: promoLoading ? 0.7 : 1 }}
++                      >
++                        {promoLoading ? 'CheckingΓÇª' : 'Apply'}
++                      </button>
++                    </div>
++                    {promoStatus && (
++                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: promoStatus.type === 'success' ? '#16a34a' : '#dc2626' }}>
++                        <span className="material-icons" style={{ fontSize: 15 }}>{promoStatus.type === 'success' ? 'check_circle' : 'error_outline'}</span>
++                        {promoStatus.msg}
++                      </div>
++                    )}
++                  </>
++                )}
+               </div>
+             </div>
+ 
+-            <div style={{width:'300px'}}>
+-              <div style={{padding:'20px', border:'1px solid #ddd', borderRadius:'4px', background:'#fafafa'}}>
+-                <h3 style={{marginTop:0}}>Summary</h3>
+-                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
+-                  <span>Subtotal:</span>
+-                  <span>{formatINR(subtotal)}</span>
++            {/* Order Summary */}
++            <div style={{ width: 320, flexShrink: 0 }}>
++              <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 24 }}>
++                <h3 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 20, marginTop: 0 }}>Order Summary</h3>
++
++                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
++                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
++                    <span style={{ color: '#6b7280' }}>Subtotal ({cart.items.reduce((s, i) => s + i.quantity, 0)} items)</span>
++                    <span style={{ fontWeight: 600 }}>{formatINR(subtotal)}</span>
++                  </div>
++
++                  {hasAppliedDiscount && (
++                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: '#16a34a' }}>
++                      <span>Promo ({cart.discountCode})</span>
++                      <span style={{ fontWeight: 700 }}>ΓêÆ {formatINR(cart.discountAmount)}</span>
++                    </div>
++                  )}
++
++                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#9ca3af' }}>
++                    <span>Tax</span>
++                    <span>Calculated at payment</span>
++                  </div>
++
++                  <hr style={{ border: 'none', borderTop: '1px solid #f3f4f6', margin: '4px 0' }} />
++
++                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 800 }}>
++                    <span>Total</span>
++                    <span>{formatINR(total)}</span>
++                  </div>
+                 </div>
+-                {cart.discountAmount > 0 && (
+-                  <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px', color:'green'}}>
+-                    <span>Discount:</span>
+-                    <span>-{formatINR(cart.discountAmount)}</span>
++
++                {/* Payment failure banner */}
++                {paymentError && (
++                  <div style={{ marginTop: 16, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
++                    <span className="material-icons" style={{ fontSize: 18, color: '#dc2626', flexShrink: 0, marginTop: 1 }}>error</span>
++                    <div>
++                      <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#991b1b', marginBottom: 4 }}>Payment Failed</div>
++                      <div style={{ fontSize: '0.78rem', color: '#b91c1c' }}>{paymentError}</div>
++                    </div>
+                   </div>
+                 )}
+-                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px', color:'#666', fontSize:'0.9em'}}>
+-                  <span>Estimated Tax:</span>
+-                  <span>(Calculated at checkout)</span>
+-                </div>
+-                <hr />
+-                <div style={{display:'flex', justifyContent:'space-between', marginTop:'15px', fontSize:'1.3em', fontWeight:'bold'}}>
+-                  <span>Total:</span>
+-                  <span>{formatINR(total)}</span>
+-                </div>
+ 
+-                <button 
++                <button
+                   onClick={handleCheckout}
+-                  disabled={loading}
++                  disabled={loading || cart.items.length === 0}
+                   style={{
+-                    width:'100%', 
+-                    padding:'12px', 
+-                    background:'#28a745', 
+-                    color:'#fff', 
+-                    border:'none', 
+-                    borderRadius:'4px', 
+-                    marginTop:'20px', 
+-                    cursor:'pointer',
+-                    fontWeight:'bold'
++                    width: '100%',
++                    padding: '14px',
++                    background: loading ? '#9ca3af' : '#0b1c30',
++                    color: '#fff',
++                    border: 'none',
++                    borderRadius: 10,
++                    marginTop: 20,
++                    cursor: loading ? 'not-allowed' : 'pointer',
++                    fontWeight: 800,
++                    fontSize: '0.95rem',
++                    display: 'flex',
++                    alignItems: 'center',
++                    justifyContent: 'center',
++                    gap: 8,
++                    transition: 'background 0.2s',
+                   }}
+                 >
+-                  {loading ? 'Processing...' : 'Proceed to Pay'}
++                  {loading ? (
++                    <>
++                      <span className="material-icons" style={{ fontSize: 16, animation: 'spin 1s linear infinite' }}>pending</span>
++                      ProcessingΓÇª
++                    </>
++                  ) : paymentError ? (
++                    <>
++                      <span className="material-icons" style={{ fontSize: 16 }}>refresh</span>
++                      Retry Payment
++                    </>
++                  ) : (
++                    <>
++                      <span className="material-icons" style={{ fontSize: 16 }}>lock</span>
++                      Pay {formatINR(total)}
++                    </>
++                  )}
+                 </button>
+-                <p style={{fontSize:'0.75em', color:'#888', marginTop:'10px', textAlign:'center'}}>
+-                  Powered by Razorpay
+-                </p>
++
++                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12 }}>
++                  <span className="material-icons" style={{ fontSize: 14, color: '#9ca3af' }}>verified_user</span>
++                  <p style={{ fontSize: '0.72rem', color: '#9ca3af', margin: 0 }}>Secured by Razorpay ┬╖ SSL encrypted</p>
++                </div>
+               </div>
+             </div>
++
+           </div>
+         )}
+       </div>
+@@ -230,6 +336,4 @@ function CartPage() {
+   );
+ }
+ 
+-import Link from 'next/link';
+-
+ export default withAuth(CartPage);
+diff --git a/frontend/src/app/plans/page.tsx b/frontend/src/app/plans/page.tsx
+index 0ebf7a5..060142f 100644
+--- a/frontend/src/app/plans/page.tsx
++++ b/frontend/src/app/plans/page.tsx
+@@ -6,6 +6,23 @@ import DashboardLayout from '@/components/DashboardLayout';
+ 
+ const cycleLabel = (c: string) => ({ daily:'Daily', weekly:'Weekly', monthly:'Monthly', yearly:'Yearly' }[c] || c || 'ΓÇö');
+ 
++// ΓöÇΓöÇ Inline Confirm Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
++  return (
++    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
++      onClick={onCancel}>
++      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: 28, width: '100%', maxWidth: 380 }}
++        onClick={e => e.stopPropagation()}>
++        <p style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--on-surface)', marginBottom: 24 }}>{message}</p>
++        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
++          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
++          <button onClick={onConfirm} className="btn btn-primary" style={{ background: 'var(--error)' }}>Delete</button>
++        </div>
++      </div>
++    </div>
++  );
++}
++
+ // ΓöÇΓöÇ Create / Edit Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ function TemplateModal({ template, plans, terms, onClose, onSaved }: { template?: any; plans: any[]; terms: any[]; onClose: () => void; onSaved: () => void }) {
+   const [form, setForm] = useState({
+@@ -315,10 +332,11 @@ function ApplyModal({ template, onClose }: { template: any; onClose: () => void
+ 
+ // ΓöÇΓöÇ Main Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ function PlansPage() {
+-  const [activeTab, setActiveTab] = useState<'templates' | 'terms' | 'plans'>('templates');
++  const [activeTab, setActiveTab] = useState<'templates' | 'terms' | 'plans' | 'quotations'>('templates');
+   const [templates, setTemplates] = useState<any[]>([]);
+   const [plans, setPlans] = useState<any[]>([]);
+   const [terms, setTerms] = useState<any[]>([]);
++  const [quotations, setQuotations] = useState<any[]>([]);
+   const [loading, setLoading] = useState(true);
+   const [showModal, setShowModal] = useState(false);
+   const [showTermModal, setShowTermModal] = useState(false);
+@@ -327,6 +345,8 @@ function PlansPage() {
+   const [editTerm, setEditTerm] = useState<any>(null);
+   const [editPlan, setEditPlan] = useState<any>(null);
+   const [applyTemplate, setApplyTemplate] = useState<any>(null);
++  const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
++  const [deleteError, setDeleteError] = useState('');
+ 
+   const fetchAll = () => {
+     setLoading(true);
+@@ -343,24 +363,49 @@ function PlansPage() {
+     }).catch(() => setLoading(false));
+   };
+ 
+-  useEffect(() => { fetchAll(); }, []);
++  const fetchQuotations = () => {
++    Promise.all([
++      api.get('/subscriptions/?status=quotation'),
++      api.get('/subscriptions/?status=quotation_sent'),
++    ]).then(([q, qs]) => {
++      const all = [
++        ...(Array.isArray(q.data) ? q.data : q.data.results || []),
++        ...(Array.isArray(qs.data) ? qs.data : qs.data.results || []),
++      ];
++      // Sort newest first
++      all.sort((a, b) => b.id - a.id);
++      setQuotations(all);
++    }).catch(() => {});
++  };
++
++  useEffect(() => { fetchAll(); fetchQuotations(); }, []);
++
++  const askConfirm = (message: string, onConfirm: () => void) => {
++    setConfirmModal({ message, onConfirm });
++  };
+ 
+   const deleteTemplate = async (id: number) => {
+-    if (!window.confirm('Delete this template?')) return;
+-    try { await api.delete(`/quotation-templates/${id}/`); fetchAll(); }
+-    catch { alert('Failed to delete.'); }
++    askConfirm('Delete this template? This cannot be undone.', async () => {
++      setConfirmModal(null);
++      try { await api.delete(`/quotation-templates/${id}/`); fetchAll(); }
++      catch { setDeleteError('Failed to delete template. It may be in use.'); }
++    });
+   };
+ 
+   const deleteTerm = async (id: number) => {
+-    if (!window.confirm('Delete this initial payment term?')) return;
+-    try { await api.delete(`/payment-terms/${id}/`); fetchAll(); }
+-    catch { alert('Failed to delete.'); }
++    askConfirm('Delete this payment term?', async () => {
++      setConfirmModal(null);
++      try { await api.delete(`/payment-terms/${id}/`); fetchAll(); }
++      catch { setDeleteError('Failed to delete term. It may be in use.'); }
++    });
+   };
+ 
+   const deletePlan = async (id: number) => {
+-    if (!window.confirm('Delete this plan and billing structure?')) return;
+-    try { await api.delete(`/plans/${id}/`); fetchAll(); }
+-    catch { alert('Failed to delete.'); }
++    askConfirm('Delete this plan and billing structure?', async () => {
++      setConfirmModal(null);
++      try { await api.delete(`/plans/${id}/`); fetchAll(); }
++      catch { setDeleteError('Failed to delete plan. It may be in use.'); }
++    });
+   };
+ 
+   const gradients = [
+@@ -376,14 +421,16 @@ function PlansPage() {
+       title="Plans & Structures"
+       subtitle="Define how your subscriptions are billed and structured."
+       actions={
+-        <button className="btn btn-primary" onClick={() => { 
+-          if (activeTab === 'templates') { setEditTemplate(null); setShowModal(true); }
+-          else if (activeTab === 'terms') { setEditTerm(null); setShowTermModal(true); }
+-          else { setEditPlan(null); setShowPlanModal(true); }
+-        }}>
+-          <span className="material-icons" style={{ fontSize: 16 }}>add</span>
+-          {activeTab === 'templates' ? 'New Template' : activeTab === 'terms' ? 'New Term' : 'New Plan'}
+-        </button>
++        activeTab !== 'quotations' ? (
++          <button className="btn btn-primary" onClick={() => {
++            if (activeTab === 'templates') { setEditTemplate(null); setShowModal(true); }
++            else if (activeTab === 'terms') { setEditTerm(null); setShowTermModal(true); }
++            else { setEditPlan(null); setShowPlanModal(true); }
++          }}>
++            <span className="material-icons" style={{ fontSize: 16 }}>add</span>
++            {activeTab === 'templates' ? 'New Template' : activeTab === 'terms' ? 'New Term' : 'New Plan'}
++          </button>
++        ) : undefined
+       }
+     >
+       {/* Tab Switcher */}
+@@ -392,8 +439,9 @@ function PlansPage() {
+           { id: 'templates', label: 'Quotation Templates', icon: 'description' },
+           { id: 'terms', label: 'Initial Payment Terms', icon: 'payments' },
+           { id: 'plans', label: 'Default (Linked) Payment Terms', icon: 'swap_calls' },
++          { id: 'quotations', label: 'Sent Quotations', icon: 'send' },
+         ].map(tab => (
+-          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
++          <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); if (tab.id === 'quotations') fetchQuotations(); }}
+             style={{
+               padding: '12px 4px', border: 'none', background: 'none', cursor: 'pointer',
+               display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.9rem', fontWeight: 600,
+@@ -407,9 +455,20 @@ function PlansPage() {
+         ))}
+       </div>
+ 
+-      {loading ? (
++      {/* Delete / operation error */}
++      {deleteError && (
++        <div style={{ background: 'var(--error-container)', color: 'var(--error)', padding: '10px 16px', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
++          {deleteError}
++          <button onClick={() => setDeleteError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontWeight: 700 }}>Γ£ò</button>
++        </div>
++      )}
++
++      {loading && (
+         <div style={{ textAlign: 'center', padding: 60, color: 'var(--on-surface-variant)' }}>Loading structuresΓÇª</div>
+-      ) : activeTab === 'templates' ? (
++      )}
++
++      {/* Templates Tab */}
++      {!loading && activeTab === 'templates' && (
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+           {templates.map((t, i) => (
+             <div key={t.id} style={{ background: 'var(--surface-container-lowest)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column' }}>
+@@ -442,7 +501,6 @@ function PlansPage() {
+ 
+               {/* Body */}
+               <div style={{ padding: '18px 24px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+-                {/* Products in template */}
+                 <div>
+                   <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Products</div>
+                   {t.lines?.length > 0 ? (
+@@ -475,8 +533,10 @@ function PlansPage() {
+             </div>
+           )}
+         </div>
+-      ) : activeTab === 'terms' ? (
+-        /* Render Terms Tab */
++      )}
++
++      {/* Terms Tab */}
++      {!loading && activeTab === 'terms' && (
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+           {terms.map((t, i) => (
+             <div key={t.id} style={{ background: 'var(--surface-container-lowest)', borderRadius: 'var(--radius-lg)', padding: 24, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--surface-container-high)', display: 'flex', flexDirection: 'column' }}>
+@@ -489,10 +549,10 @@ function PlansPage() {
+                   <button onClick={() => deleteTerm(t.id)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', color: 'var(--error)' }}>Delete</button>
+                 </div>
+               </div>
+-              
++
+               <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--on-surface)', marginBottom: 4 }}>{t.name}</div>
+               <div style={{ fontSize: '0.85rem', color: 'var(--on-surface-variant)', marginBottom: 20 }}>Net {t.due_days} days due</div>
+-              
++
+               <div style={{ marginTop: 'auto', background: 'var(--surface-container)', borderRadius: 12, padding: 16 }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase' }}>Structure</span>
+@@ -520,8 +580,10 @@ function PlansPage() {
+             </div>
+           )}
+         </div>
+-      ) : (
+-        /* Render Plans Tab */
++      )}
++
++      {/* Plans Tab */}
++      {!loading && activeTab === 'plans' && (
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+           {plans.map((p, i) => (
+             <div key={p.id} style={{ background: 'var(--surface-container-lowest)', borderRadius: 'var(--radius-lg)', padding: 24, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--surface-container-high)', display: 'flex', flexDirection: 'column' }}>
+@@ -534,10 +596,10 @@ function PlansPage() {
+                   <button onClick={() => deletePlan(p.id)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', color: 'var(--error)' }}>Delete</button>
+                 </div>
+               </div>
+-              
++
+               <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--on-surface)', marginBottom: 4 }}>{p.name}</div>
+               <div style={{ fontSize: '0.85rem', color: 'var(--on-surface-variant)', marginBottom: 20 }}>Starts billing cycle for members</div>
+-              
++
+               <div style={{ marginTop: 'auto', background: 'var(--surface-container)', borderRadius: 12, padding: 16 }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase' }}>Legacy Structure</span>
+@@ -565,6 +627,55 @@ function PlansPage() {
+         </div>
+       )}
+ 
++      {/* Sent Quotations Tab */}
++      {!loading && activeTab === 'quotations' && (
++        <div>
++          {quotations.length === 0 ? (
++            <div style={{ textAlign: 'center', padding: 60, color: 'var(--on-surface-variant)' }}>
++              <span className="material-icons" style={{ fontSize: 48, display: 'block', marginBottom: 12 }}>send</span>
++              No quotations sent yet. Use <strong>Use This Template</strong> to send one.
++            </div>
++          ) : (
++            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
++              <table className="data-table">
++                <thead>
++                  <tr>
++                    <th>Reference</th>
++                    <th>Customer</th>
++                    <th>Plan</th>
++                    <th>Status</th>
++                    <th>Created</th>
++                    <th style={{ textAlign: 'right' }}>Actions</th>
++                  </tr>
++                </thead>
++                <tbody>
++                  {quotations.map(q => (
++                    <tr key={q.id}>
++                      <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{q.subscription_number || `SUB-${q.id}`}</td>
++                      <td>{q.customer_name || q.customer_email || `Customer #${q.customer}`}</td>
++                      <td style={{ color: 'var(--on-surface-variant)' }}>{q.plan_name || 'ΓÇö'}</td>
++                      <td>
++                        <span style={{
++                          display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase',
++                          background: q.status === 'quotation_sent' ? 'var(--primary-container)' : 'var(--surface-container)',
++                          color: q.status === 'quotation_sent' ? 'var(--primary)' : 'var(--on-surface-variant)'
++                        }}>
++                          {q.status === 'quotation_sent' ? 'Sent' : 'Draft Quotation'}
++                        </span>
++                      </td>
++                      <td style={{ color: 'var(--on-surface-variant)', fontSize: '0.85rem' }}>{q.start_date || 'ΓÇö'}</td>
++                      <td style={{ textAlign: 'right' }}>
++                        <a href={`/subscriptions/${q.id}`} className="btn btn-secondary btn-sm">View</a>
++                      </td>
++                    </tr>
++                  ))}
++                </tbody>
++              </table>
++            </div>
++          )}
++        </div>
++      )}
++
+       {showModal && (
+         <TemplateModal template={editTemplate} plans={plans} terms={terms} onClose={() => setShowModal(false)} onSaved={fetchAll} />
+       )}
+@@ -577,6 +688,13 @@ function PlansPage() {
+       {applyTemplate && (
+         <ApplyModal template={applyTemplate} onClose={() => setApplyTemplate(null)} />
+       )}
++      {confirmModal && (
++        <ConfirmModal
++          message={confirmModal.message}
++          onConfirm={confirmModal.onConfirm}
++          onCancel={() => setConfirmModal(null)}
++        />
++      )}
+     </DashboardLayout>
+   );
+ }
+diff --git a/frontend/src/app/subscriptions/page.tsx b/frontend/src/app/subscriptions/page.tsx
+index 73863b6..9f0eff2 100644
+--- a/frontend/src/app/subscriptions/page.tsx
++++ b/frontend/src/app/subscriptions/page.tsx
+@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
+ function SubscriptionsPage() {
+   const [subs, setSubs] = useState<any[]>([]);
+   const [loading, setLoading] = useState(true);
++  const [actionError, setActionError] = useState('');
+ 
+   useEffect(() => { fetchSubs(); }, []);
+ 
+@@ -20,11 +21,12 @@ function SubscriptionsPage() {
+   };
+ 
+   const handleConfirm = async (id: number) => {
++    setActionError('');
+     try {
+       await api.post(`/subscriptions/${id}/confirm/`);
+       fetchSubs();
+     } catch (err: any) {
+-      alert(err.response?.data?.error || 'Error confirming subscription');
++      setActionError(err.response?.data?.error || 'Error confirming subscription');
+     }
+   };
+ 
+@@ -50,6 +52,12 @@ function SubscriptionsPage() {
+         </Link>
+       }
+     >
++      {actionError && (
++        <div style={{ background: 'var(--error-container)', color: 'var(--error)', padding: '10px 16px', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
++          {actionError}
++          <button onClick={() => setActionError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontWeight: 700 }}>Γ£ò</button>
++        </div>
++      )}
+       {/* Stat Cards */}
+       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+         {[
+diff --git a/frontend/src/lib/razorpay.ts b/frontend/src/lib/razorpay.ts
+index b8804e6..8d8f992 100644
+--- a/frontend/src/lib/razorpay.ts
++++ b/frontend/src/lib/razorpay.ts
+@@ -1,14 +1,15 @@
+ import api from './api';
+ 
+ export async function openRazorpayCheckout(
+-  invoiceId: string | number, 
++  invoiceId: string | number,
+   onSuccess: (response: any) => void,
+-  onCancel?: () => void
++  onCancel?: () => void,
++  onFailure?: (msg: string) => void
+ ) {
+   try {
+     const res = await api.post('/payments/create-order/', { invoice_id: invoiceId });
+     const order = res.data;
+-    
++
+     const options = {
+       key: order.key_id,
+       amount: order.amount,
+@@ -17,36 +18,45 @@ export async function openRazorpayCheckout(
+       description: `Payment for Invoice #${invoiceId}`,
+       order_id: order.razorpay_order_id,
+       handler: async (response: any) => {
+-        // verify payment
+         try {
+           await api.post('/payments/verify/', {
+             ...response,
+-            invoice_id: invoiceId
++            invoice_id: invoiceId,
+           });
+           onSuccess(response);
+         } catch (err: any) {
+-          alert('Payment verification failed: ' + (err.response?.data?.error || 'Unknown error'));
++          const msg =
++            err.response?.data?.error || 'Payment verification failed. Please contact support.';
++          if (onFailure) onFailure(msg);
++          else console.error('[Razorpay] Verification failed:', msg);
+         }
+       },
+-      prefill: {
+-        name: '',
+-        email: '',
+-        contact: ''
+-      },
+-      theme: {
+-        color: '#0070f3'
+-      },
++      prefill: { name: '', email: '', contact: '' },
++      theme: { color: '#0070f3' },
+       modal: {
+-        ondismiss: function() {
++        ondismiss: function () {
+           if (onCancel) onCancel();
+-        }
+-      }
++        },
++      },
+     };
+-    
++
+     const rzp = new (window as any).Razorpay(options);
++
++    // Handle Razorpay native payment failure event
++    rzp.on('payment.failed', function (response: any) {
++      const msg =
++        response?.error?.description ||
++        response?.error?.reason ||
++        'Payment failed. Please try again with a different payment method.';
++      if (onFailure) onFailure(msg);
++      else console.error('[Razorpay] Payment failed:', msg);
++    });
++
+     rzp.open();
+   } catch (err: any) {
+-    console.error(err);
+-    alert('Failed to initiate payment: ' + (err.response?.data?.error || 'Unknown error'));
++    const msg =
++      err.response?.data?.error || 'Failed to initiate payment. Please try again.';
++    if (onFailure) onFailure(msg);
++    else console.error('[Razorpay] Init failed:', msg);
+   }
+ }

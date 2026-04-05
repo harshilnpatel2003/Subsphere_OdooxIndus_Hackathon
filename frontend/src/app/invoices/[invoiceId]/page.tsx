@@ -210,11 +210,27 @@ function InvoiceDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div className="card">
                 <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--on-surface-variant)', marginBottom: 12 }}>Financial Meta</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)' }}>Due Date</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', marginBottom: 4 }}>Due Date</div>
                         <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{invoice.due_date || 'Due on Receipt'}</div>
                     </div>
+                    {invoice.subscription && (
+                        <div style={{ borderTop: '1px solid var(--surface-container)', paddingTop: 12 }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', marginBottom: 6 }}>Linked Order</div>
+                            <Link href={`/subscriptions/${invoice.subscription}`} style={{ textDecoration: 'none' }}>
+                                <div style={{ 
+                                    background: 'var(--surface-container-low)', padding: '10px 12px', borderRadius: 8,
+                                    border: '1px solid var(--outline-variant)'
+                                }}>
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>{invoice.subscription_number || `SUB-${invoice.subscription}`}</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--on-surface-variant)', marginTop: 2 }}>
+                                        Plan: {invoice.plan_name || 'Standard'}
+                                    </div>
+                                </div>
+                            </Link>
+                        </div>
+                    )}
                 </div>
             </div>
 

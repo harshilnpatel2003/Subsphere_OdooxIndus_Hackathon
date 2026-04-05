@@ -18,6 +18,7 @@ class Plan(models.Model):
     closable = models.BooleanField(default=True)
     pausable = models.BooleanField(default=True)
     renewable = models.BooleanField(default=True)
+    razorpay_plan_id = models.CharField(max_length=100, blank=True, default='')
 
     def __str__(self):
         return self.name

@@ -23,6 +23,7 @@ class Invoice(models.Model):
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    billing_cycle_label = models.CharField(max_length=20, blank=True, default='')  # e.g. '2025-04'
 
     def save(self, *args, **kwargs):
         if not self.invoice_number:

@@ -1,0 +1,74 @@
+﻿  Γû▓ Next.js 14.2.35
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : Failed to 
+compile.
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (F  
+  ailed to compile.:Str   
+ ing) [], RemoteExcept    
+ion
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+
+./src/app/invoices/page.ts
+x:103:26
+Type error: Cannot find 
+name 'Link'.
+
+[0m [90m 101 |[39m     
+              [33m<[39m
+[33mtd[39m[33m>[39m[0m
+[0m [90m 102 |[39m     
+                {inv[33m.
+[39msubscription 
+[33m?[39m ([0m
+[0m[31m[1m>[22m[39m[
+90m 103 |[39m            
+             
+[33m<[39m[33mLink[39m 
+href[33m=[39m{[32m`/sub
+scriptions/${inv.subscript
+ion}`[39m} 
+style[33m=[39m{{ 
+fontSize[33m:[39m [32m'
+0.8125rem'[39m[33m,[39m
+ color[33m:[39m [32m'va
+r(--primary)'[39m[33m,[
+39m fontWeight[33m:[39m 
+[35m600[39m[33m,[39m 
+textDecoration[33m:[39m 
+[32m'none'[39m 
+}}[33m>[39m[0m
+[0m [90m     |[39m     
+                     
+[31m[1m^[22m[39m[0m
+[0m [90m 104 |[39m     
+                        {i
+nv[33m.[39msubscription_
+number [33m||[39m [32m`
+SUB-${inv.subscription}`[
+39m}[0m
+[0m [90m 105 |[39m     
+                    [33m<
+[39m[33m/[39m[33mLink
+[39m[33m>[39m[0m
+[0m [90m 106 |[39m     
+                ) 
+[33m:[39m 
+[32m'ΓÇö'[39m}[0m
+Next.js build worker 
+exited with code: 1 and 
+signal: null

@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 function SubscriptionsPage() {
   const [subs, setSubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => { fetchSubs(); }, []);
 
@@ -20,11 +21,12 @@ function SubscriptionsPage() {
   };
 
   const handleConfirm = async (id: number) => {
+    setActionError('');
     try {
       await api.post(`/subscriptions/${id}/confirm/`);
       fetchSubs();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Error confirming subscription');
+      setActionError(err.response?.data?.error || 'Error confirming subscription');
     }
   };
 
@@ -50,6 +52,12 @@ function SubscriptionsPage() {
         </Link>
       }
     >
+      {actionError && (
+        <div style={{ background: 'var(--error-container)', color: 'var(--error)', padding: '10px 16px', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+          {actionError}
+          <button onClick={() => setActionError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontWeight: 700 }}>✕</button>
+        </div>
+      )}
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
         {[

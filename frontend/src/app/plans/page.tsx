@@ -6,6 +6,23 @@ import DashboardLayout from '@/components/DashboardLayout';
 
 const cycleLabel = (c: string) => ({ daily:'Daily', weekly:'Weekly', monthly:'Monthly', yearly:'Yearly' }[c] || c || '—');
 
+// ── Inline Confirm Modal ───────────────────────────────────────────────────
+function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+      onClick={onCancel}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: 28, width: '100%', maxWidth: 380 }}
+        onClick={e => e.stopPropagation()}>
+        <p style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--on-surface)', marginBottom: 24 }}>{message}</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={onConfirm} className="btn btn-primary" style={{ background: 'var(--error)' }}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Create / Edit Modal ────────────────────────────────────────────────────
 function TemplateModal({ template, plans, terms, onClose, onSaved }: { template?: any; plans: any[]; terms: any[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
@@ -315,10 +332,11 @@ function ApplyModal({ template, onClose }: { template: any; onClose: () => void 
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 function PlansPage() {
-  const [activeTab, setActiveTab] = useState<'templates' | 'terms' | 'plans'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'terms' | 'plans' | 'quotations'>('templates');
   const [templates, setTemplates] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [terms, setTerms] = useState<any[]>([]);
+  const [quotations, setQuotations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showTermModal, setShowTermModal] = useState(false);
@@ -327,6 +345,8 @@ function PlansPage() {
   const [editTerm, setEditTerm] = useState<any>(null);
   const [editPlan, setEditPlan] = useState<any>(null);
   const [applyTemplate, setApplyTemplate] = useState<any>(null);
+  const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const fetchAll = () => {
     setLoading(true);
@@ -343,24 +363,49 @@ function PlansPage() {
     }).catch(() => setLoading(false));
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  const fetchQuotations = () => {
+    Promise.all([
+      api.get('/subscriptions/?status=quotation'),
+      api.get('/subscriptions/?status=quotation_sent'),
+    ]).then(([q, qs]) => {
+      const all = [
+        ...(Array.isArray(q.data) ? q.data : q.data.results || []),
+        ...(Array.isArray(qs.data) ? qs.data : qs.data.results || []),
+      ];
+      // Sort newest first
+      all.sort((a, b) => b.id - a.id);
+      setQuotations(all);
+    }).catch(() => {});
+  };
+
+  useEffect(() => { fetchAll(); fetchQuotations(); }, []);
+
+  const askConfirm = (message: string, onConfirm: () => void) => {
+    setConfirmModal({ message, onConfirm });
+  };
 
   const deleteTemplate = async (id: number) => {
-    if (!window.confirm('Delete this template?')) return;
-    try { await api.delete(`/quotation-templates/${id}/`); fetchAll(); }
-    catch { alert('Failed to delete.'); }
+    askConfirm('Delete this template? This cannot be undone.', async () => {
+      setConfirmModal(null);
+      try { await api.delete(`/quotation-templates/${id}/`); fetchAll(); }
+      catch { setDeleteError('Failed to delete template. It may be in use.'); }
+    });
   };
 
   const deleteTerm = async (id: number) => {
-    if (!window.confirm('Delete this initial payment term?')) return;
-    try { await api.delete(`/payment-terms/${id}/`); fetchAll(); }
-    catch { alert('Failed to delete.'); }
+    askConfirm('Delete this payment term?', async () => {
+      setConfirmModal(null);
+      try { await api.delete(`/payment-terms/${id}/`); fetchAll(); }
+      catch { setDeleteError('Failed to delete term. It may be in use.'); }
+    });
   };
 
   const deletePlan = async (id: number) => {
-    if (!window.confirm('Delete this plan and billing structure?')) return;
-    try { await api.delete(`/plans/${id}/`); fetchAll(); }
-    catch { alert('Failed to delete.'); }
+    askConfirm('Delete this plan and billing structure?', async () => {
+      setConfirmModal(null);
+      try { await api.delete(`/plans/${id}/`); fetchAll(); }
+      catch { setDeleteError('Failed to delete plan. It may be in use.'); }
+    });
   };
 
   const gradients = [
@@ -376,14 +421,16 @@ function PlansPage() {
       title="Plans & Structures"
       subtitle="Define how your subscriptions are billed and structured."
       actions={
-        <button className="btn btn-primary" onClick={() => { 
-          if (activeTab === 'templates') { setEditTemplate(null); setShowModal(true); }
-          else if (activeTab === 'terms') { setEditTerm(null); setShowTermModal(true); }
-          else { setEditPlan(null); setShowPlanModal(true); }
-        }}>
-          <span className="material-icons" style={{ fontSize: 16 }}>add</span>
-          {activeTab === 'templates' ? 'New Template' : activeTab === 'terms' ? 'New Term' : 'New Plan'}
-        </button>
+        activeTab !== 'quotations' ? (
+          <button className="btn btn-primary" onClick={() => {
+            if (activeTab === 'templates') { setEditTemplate(null); setShowModal(true); }
+            else if (activeTab === 'terms') { setEditTerm(null); setShowTermModal(true); }
+            else { setEditPlan(null); setShowPlanModal(true); }
+          }}>
+            <span className="material-icons" style={{ fontSize: 16 }}>add</span>
+            {activeTab === 'templates' ? 'New Template' : activeTab === 'terms' ? 'New Term' : 'New Plan'}
+          </button>
+        ) : undefined
       }
     >
       {/* Tab Switcher */}
@@ -392,8 +439,9 @@ function PlansPage() {
           { id: 'templates', label: 'Quotation Templates', icon: 'description' },
           { id: 'terms', label: 'Initial Payment Terms', icon: 'payments' },
           { id: 'plans', label: 'Default (Linked) Payment Terms', icon: 'swap_calls' },
+          { id: 'quotations', label: 'Sent Quotations', icon: 'send' },
         ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
+          <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); if (tab.id === 'quotations') fetchQuotations(); }}
             style={{
               padding: '12px 4px', border: 'none', background: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.9rem', fontWeight: 600,
@@ -407,9 +455,20 @@ function PlansPage() {
         ))}
       </div>
 
-      {loading ? (
+      {/* Delete / operation error */}
+      {deleteError && (
+        <div style={{ background: 'var(--error-container)', color: 'var(--error)', padding: '10px 16px', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+          {deleteError}
+          <button onClick={() => setDeleteError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', fontWeight: 700 }}>✕</button>
+        </div>
+      )}
+
+      {loading && (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--on-surface-variant)' }}>Loading structures…</div>
-      ) : activeTab === 'templates' ? (
+      )}
+
+      {/* Templates Tab */}
+      {!loading && activeTab === 'templates' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
           {templates.map((t, i) => (
             <div key={t.id} style={{ background: 'var(--surface-container-lowest)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column' }}>
@@ -442,7 +501,6 @@ function PlansPage() {
 
               {/* Body */}
               <div style={{ padding: '18px 24px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {/* Products in template */}
                 <div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--on-surface-variant)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Products</div>
                   {t.lines?.length > 0 ? (
@@ -475,8 +533,10 @@ function PlansPage() {
             </div>
           )}
         </div>
-      ) : activeTab === 'terms' ? (
-        /* Render Terms Tab */
+      )}
+
+      {/* Terms Tab */}
+      {!loading && activeTab === 'terms' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
           {terms.map((t, i) => (
             <div key={t.id} style={{ background: 'var(--surface-container-lowest)', borderRadius: 'var(--radius-lg)', padding: 24, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--surface-container-high)', display: 'flex', flexDirection: 'column' }}>
@@ -489,10 +549,10 @@ function PlansPage() {
                   <button onClick={() => deleteTerm(t.id)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', color: 'var(--error)' }}>Delete</button>
                 </div>
               </div>
-              
+
               <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--on-surface)', marginBottom: 4 }}>{t.name}</div>
               <div style={{ fontSize: '0.85rem', color: 'var(--on-surface-variant)', marginBottom: 20 }}>Net {t.due_days} days due</div>
-              
+
               <div style={{ marginTop: 'auto', background: 'var(--surface-container)', borderRadius: 12, padding: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase' }}>Structure</span>
@@ -520,8 +580,10 @@ function PlansPage() {
             </div>
           )}
         </div>
-      ) : (
-        /* Render Plans Tab */
+      )}
+
+      {/* Plans Tab */}
+      {!loading && activeTab === 'plans' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
           {plans.map((p, i) => (
             <div key={p.id} style={{ background: 'var(--surface-container-lowest)', borderRadius: 'var(--radius-lg)', padding: 24, boxShadow: 'var(--shadow-sm)', border: '1px solid var(--surface-container-high)', display: 'flex', flexDirection: 'column' }}>
@@ -534,10 +596,10 @@ function PlansPage() {
                   <button onClick={() => deletePlan(p.id)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', color: 'var(--error)' }}>Delete</button>
                 </div>
               </div>
-              
+
               <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--on-surface)', marginBottom: 4 }}>{p.name}</div>
               <div style={{ fontSize: '0.85rem', color: 'var(--on-surface-variant)', marginBottom: 20 }}>Starts billing cycle for members</div>
-              
+
               <div style={{ marginTop: 'auto', background: 'var(--surface-container)', borderRadius: 12, padding: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--on-surface-variant)', textTransform: 'uppercase' }}>Legacy Structure</span>
@@ -565,6 +627,55 @@ function PlansPage() {
         </div>
       )}
 
+      {/* Sent Quotations Tab */}
+      {!loading && activeTab === 'quotations' && (
+        <div>
+          {quotations.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--on-surface-variant)' }}>
+              <span className="material-icons" style={{ fontSize: 48, display: 'block', marginBottom: 12 }}>send</span>
+              No quotations sent yet. Use <strong>Use This Template</strong> to send one.
+            </div>
+          ) : (
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Customer</th>
+                    <th>Plan</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quotations.map(q => (
+                    <tr key={q.id}>
+                      <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{q.subscription_number || `SUB-${q.id}`}</td>
+                      <td>{q.customer_name || q.customer_email || `Customer #${q.customer}`}</td>
+                      <td style={{ color: 'var(--on-surface-variant)' }}>{q.plan_name || '—'}</td>
+                      <td>
+                        <span style={{
+                          display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase',
+                          background: q.status === 'quotation_sent' ? 'var(--primary-container)' : 'var(--surface-container)',
+                          color: q.status === 'quotation_sent' ? 'var(--primary)' : 'var(--on-surface-variant)'
+                        }}>
+                          {q.status === 'quotation_sent' ? 'Sent' : 'Draft Quotation'}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--on-surface-variant)', fontSize: '0.85rem' }}>{q.start_date || '—'}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <a href={`/subscriptions/${q.id}`} className="btn btn-secondary btn-sm">View</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {showModal && (
         <TemplateModal template={editTemplate} plans={plans} terms={terms} onClose={() => setShowModal(false)} onSaved={fetchAll} />
       )}
@@ -576,6 +687,13 @@ function PlansPage() {
       )}
       {applyTemplate && (
         <ApplyModal template={applyTemplate} onClose={() => setApplyTemplate(null)} />
+      )}
+      {confirmModal && (
+        <ConfirmModal
+          message={confirmModal.message}
+          onConfirm={confirmModal.onConfirm}
+          onCancel={() => setConfirmModal(null)}
+        />
       )}
     </DashboardLayout>
   );

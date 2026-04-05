@@ -9,6 +9,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-hackathon-super-secre
 DEBUG = config('DEBUG', default=True, cast=bool)
 RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID', default='test_key_id')
 RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='test_key_secret')
+RAZORPAY_WEBHOOK_SECRET = config('RAZORPAY_WEBHOOK_SECRET', default='')
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [

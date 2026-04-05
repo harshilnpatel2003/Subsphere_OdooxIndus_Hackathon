@@ -21,13 +21,20 @@ class DiscountViewSet(viewsets.ModelViewSet):
             
         discount = Discount.objects.filter(code=code).first()
         if not discount:
-            return Response({'error': 'Invalid code'}, status=400)
+            return Response({'error': 'Invalid or expired code'}, status=400)
             
         if discount.usage_limit and discount.current_usage >= discount.usage_limit:
             return Response({'error': 'Usage limit reached'}, status=400)
+
+        # Per-user usage check
+        if discount.max_uses_per_user:
+            from apps.discounts.models import DiscountUsage
+            user_usage = DiscountUsage.objects.filter(discount=discount, user=request.user).count()
+            if user_usage >= discount.max_uses_per_user:
+                return Response({'error': f'You have already used this code the maximum allowed times ({discount.max_uses_per_user})'}, status=400)
             
         if cart_total < float(discount.min_purchase):
-            return Response({'error': 'Below min purchase'}, status=400)
+            return Response({'error': f'Minimum purchase of ₹{discount.min_purchase} required'}, status=400)
             
         amount_off = 0
         if discount.discount_type == 'fixed':
@@ -35,4 +42,11 @@ class DiscountViewSet(viewsets.ModelViewSet):
         else: # percentage
             amount_off = cart_total * float(discount.value) / 100.0
             
-        return Response({'discount_amount': amount_off})
+        return Response({
+            'discount_id': discount.id,
+            'discount_code': discount.code,
+            'discount_amount': amount_off,
+            'discount_type': discount.discount_type,
+            'discount_value': float(discount.value),
+            'max_uses_per_user': discount.max_uses_per_user,
+        })

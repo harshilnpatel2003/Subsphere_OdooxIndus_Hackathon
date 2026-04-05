@@ -12,6 +12,7 @@ const navItems = [
   { href: '/products',      icon: 'auto_stories',   label: 'Catalog' },
   { href: '/invoices',      icon: 'receipt_long',   label: 'Invoices' },
   { href: '/reports',       icon: 'assessment',     label: 'Reports' },
+  { href: '/discountandtax',icon: 'local_offer',    label: 'Discounts & Taxes' },
   { href: '/users',         icon: 'people',         label: 'Users', adminOnly: true },
 ];
 

@@ -333,3 +333,76 @@ input, textarea, select {
 .text-error { color: var(--error); }
 .font-mono { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ===========================
+   Pagination
+   =========================== */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-container-lowest);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.pagination-bar__info {
+  font-size: 0.8125rem;
+  color: var(--on-surface-variant);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pagination-bar__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--on-surface-variant);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.pagination-btn:hover:not(:disabled) {
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+}
+.pagination-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.pagination-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.pagination-btn--page {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pagination-btn--active {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+  color: var(--on-primary);
+  pointer-events: none;
+}
+.pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 36px;
+  color: var(--on-surface-variant);
+  font-size: 0.875rem;
+  user-select: none;
+}
